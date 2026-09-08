@@ -63,7 +63,7 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
 
-// --- ROTA DE AUTENTICAÇÃO (LOGIN) COM RETORNO DOS SETORES ---
+// --- ROTA DE AUTENTICAÇÃO (LOGIN) DIRETA NA TABELA USERS ---
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -72,28 +72,38 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'E-mail e senha são obrigatórios' });
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
 
-    const userName = data.user.user_metadata?.name || data.user.email.split('@')[0];
+    if (error || !user) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    if (user.password_hash !== password) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
 
     // Busca os setores vinculados a este usuário na tabela agent_departments
     const { data: deptData } = await supabase
       .from('agent_departments')
       .select('department')
-      .eq('user_id', data.user.id);
+      .eq('user_id', user.id);
 
     const departments = deptData ? deptData.map(d => d.department) : [];
 
     res.status(200).json({
       success: true,
       agent: {
-        id: data.user.id,
-        name: userName,
-        email: data.user.email,
-        departments: departments
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        departments: departments,
+        role: user.role
       },
-      session: data.session
+      session: { access_token: user.id }
     });
   } catch (error) {
     console.error('Erro no login:', error.message);
@@ -101,7 +111,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// --- ROTA DE CADASTRO DE NOVOS ATENDENTES ---
+// --- ROTA DE CADASTRO DE NOVOS ATENDENTES NA TABELA USERS ---
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -110,43 +120,53 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Nome, e-mail e senha são obrigatórios' });
     }
 
-    const { data, error } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { name }
-    });
+    const { data, error } = await supabase
+      .from('users')
+      .insert([
+        {
+          name: name,
+          email: email,
+          password_hash: password,
+          role: 'agent',
+          is_active: true
+        }
+      ])
+      .select()
+      .single();
 
     if (error) throw error;
 
-    res.status(200).json({ success: true, user: data.user });
+    res.status(200).json({ success: true, user: data });
   } catch (error) {
     console.error('Erro ao registrar usuário:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// --- ROTA PARA LISTAR TODOS OS ATENDENTES ---
+// --- ROTA PARA LISTAR TODOS OS ATENDENTES DA TABELA USERS ---
 app.get('/api/agents', async (req, res) => {
   try {
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-    if (authError) throw authError;
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('*');
+
+    if (userError) throw userError;
 
     const { data: deptError } = await supabase
       .from('agent_departments')
       .select('user_id, department');
-    if (deptError) throw deptError;
 
-    const agents = authUsers.users.map(user => {
+    const agents = users.map(user => {
       const userDepts = deptError
-        .filter(d => d.user_id === user.id)
-        .map(d => d.department);
+        ? deptError.filter(d => d.user_id === user.id).map(d => d.department)
+        : [];
 
       return {
         id: user.id,
-        name: user.user_metadata?.name || user.email.split('@')[0],
+        name: user.name,
         email: user.email,
-        departments: userDepts
+        departments: userDepts,
+        role: user.role
       };
     });
 
@@ -157,7 +177,7 @@ app.get('/api/agents', async (req, res) => {
   }
 });
 
-// --- ROTA PARA ALTERAR A SENHA DE UM ATENDENTE ESPECÍFICO ---
+// --- ROTA PARA ALTERAR A SENHA DE UM ATENDENTE NA TABELA USERS ---
 app.put('/api/agents/:agentId/password', async (req, res) => {
   try {
     const { agentId } = req.params;
@@ -167,9 +187,10 @@ app.put('/api/agents/:agentId/password', async (req, res) => {
       return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' });
     }
 
-    const { error } = await supabase.auth.admin.updateUserById(agentId, {
-      password: password
-    });
+    const { error } = await supabase
+      .from('users')
+      .update({ password_hash: password })
+      .eq('id', agentId);
 
     if (error) throw error;
 
@@ -391,12 +412,12 @@ app.get('/api/tickets', async (req, res) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Buscar nomes dos atendentes no Supabase Auth
-    const { data: authUsers } = await supabase.auth.admin.listUsers();
+    // Buscar nomes dos atendentes na tabela users
+    const { data: dbUsers } = await supabase.from('users').select('id, name, email');
     const usersMap = {};
-    if (authUsers && authUsers.users) {
-      authUsers.users.forEach(u => {
-        usersMap[u.id] = u.user_metadata?.name || u.email.split('@')[0];
+    if (dbUsers) {
+      dbUsers.forEach(u => {
+        usersMap[u.id] = u.name || u.email.split('@')[0];
       });
     }
 
@@ -512,7 +533,7 @@ app.post('/api/tickets/:ticketId/assign', async (req, res) => {
   }
 });
 
-// --- NOVA ROTA: ENCERRAR ATENDIMENTO ---
+// --- ROTA: ENCERRAR ATENDIMENTO ---
 app.post('/api/tickets/:ticketId/close', async (req, res) => {
   try {
     const { ticketId } = req.params;
