@@ -1,573 +1,233 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <title>Painel de Atendimento Web Net</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 h-screen flex flex-col">
+const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
+const path = require('path');
 
-    <!-- TELA DE LOGIN -->
-    <div id="login-screen" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-lg w-96">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">Login do Atendente</h2>
-            <form onsubmit="realizarLogin(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">E-mail</label>
-                    <input type="email" id="login-email" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" placeholder="seu@email.com">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Senha</label>
-                    <input type="password" id="login-password" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" placeholder="••••••••">
-                </div>
-                <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded font-semibold hover:bg-emerald-700 transition">Entrar</button>
-            </form>
-        </div>
-    </div>
+const app = express();
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-    <!-- PAINEL PRINCIPAL (Oculto até logar) -->
-    <div id="app-screen" class="flex flex-col h-screen hidden">
-        <header class="bg-emerald-600 text-white p-4 font-bold text-lg shadow-md flex justify-between items-center">
-            <span>Atendimento Web Net - MultiAtendimento</span>
-            <div class="flex items-center gap-3">
-                <button onclick="solicitarSenhaAdmin()" class="text-xs bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded transition font-semibold flex items-center gap-1">
-                    👥 Gerenciar Atendentes
-                </button>
-                <span class="text-xs bg-emerald-700 px-3 py-1.5 rounded flex items-center gap-2">
-                    Logado como: <strong id="logged-agent-name" class="text-emerald-200">Atendente</strong>
-                </span>
-            </div>
-        </header>
+// Inicialização do cliente Supabase usando variáveis de ambiente
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-        <div class="flex flex-1 overflow-hidden">
-            <!-- Lista de Conversas / Tickets -->
-            <div class="w-1/3 bg-white border-r border-gray-200 flex flex-col">
-                <div class="p-3 bg-gray-50 border-b flex flex-col gap-2">
-                    <span class="font-semibold text-gray-700 text-sm">Conversas Recentes</span>
-                    <select id="filter-department" onchange="carregarTickets()" class="border rounded px-2 py-1 text-xs bg-white text-gray-700 focus:outline-none focus:border-emerald-500">
-                        <option value="">📁 Meus Setores Permitidos</option>
-                        <option value="suporte">🔧 Suporte Técnico</option>
-                        <option value="financeiro">💰 Financeiro</option>
-                        <option value="comercial">📈 Comercial</option>
-                    </select>
-                </div>
-                <div id="tickets-list" class="flex-1 overflow-y-auto divide-y divide-gray-100">
-                    <!-- Tickets dinâmicos -->
-                </div>
-            </div>
+// ROTA DE LOGIN COMPATÍVEL COM A TABELA USERS
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-            <!-- Área de Chat -->
-            <div class="w-2/3 bg-gray-50 flex flex-col justify-between">
-                <div id="chat-header" class="p-4 bg-white border-b flex justify-between items-center">
-                    <div class="flex flex-col">
-                        <span class="font-semibold text-gray-800 text-sm" id="chat-header-text">Selecione uma conversa ao lado para iniciar</span>
-                        <div id="department-changer-container" class="hidden flex items-center gap-2 mt-1">
-                            <span class="text-[11px] text-gray-500 font-semibold">Alterar Setor:</span>
-                            <select id="select-change-department" onchange="alterarSetorTicket(this.value)" class="border rounded px-2 py-0.5 text-xs bg-white text-gray-700 focus:outline-none focus:border-emerald-500">
-                                <option value="suporte">🔧 Suporte</option>
-                                <option value="financeiro">💰 Financeiro</option>
-                                <option value="comercial">📈 Comercial</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button id="btn-assumir" onclick="assumirConversa()" class="hidden bg-blue-600 text-white text-xs px-3 py-1.5 rounded font-semibold hover:bg-blue-700 transition">
-                            🤝 Assumir Conversa
-                        </button>
-                        <button id="btn-transferir" onclick="abrirModalTransferir()" class="hidden bg-amber-600 text-white text-xs px-3 py-1.5 rounded font-semibold hover:bg-amber-700 transition">
-                            ↗️ Transferir Atendente
-                        </button>
-                        <!-- BOTÃO DE ENCERRAR ATENDIMENTO -->
-                        <button id="btn-encerrar" onclick="encerrarAtendimento()" class="hidden bg-red-600 text-white text-xs px-3 py-1.5 rounded font-semibold hover:bg-red-700 transition">
-                            🔒 Encerrar Atendimento
-                        </button>
-                    </div>
-                </div>
+        if (!email || !password) {
+            return res.status(400).json({ error: 'E-mail e senha são obrigatórios' });
+        }
 
-                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
-                    <div class="text-gray-400 text-center my-auto">Nenhuma conversa selecionada</div>
-                </div>
+        // Busca o usuário na tabela customizada 'users'
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .eq('is_active', true)
+            .single();
 
-                <div class="p-3 bg-white border-t flex gap-2">
-                    <input type="text" id="message-input" placeholder="Digite sua resposta..." class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:border-emerald-500" disabled onkeypress="if(event.key === 'Enter') enviarMensagem()">
-                    <button onclick="enviarMensagem()" id="send-btn" class="bg-emerald-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition" disabled>Enviar</button>
-                </div>
-            </div>
-        </div>
-    </div>
+        if (error || !user) {
+            return res.status(401).json({ error: 'E-mail ou senha inválidos' });
+        }
 
-    <!-- MODAL DE SENHA ADMINISTRATIVA -->
-    <div id="modal-senha-admin" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-80 space-y-4">
-            <h3 class="font-bold text-gray-800 text-lg">Área Restrita</h3>
-            <p class="text-xs text-gray-500">Digite a senha administrativa para gerenciar os atendentes:</p>
-            <input type="password" id="admin-master-password" placeholder="Senha de administrador" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" onkeypress="if(event.key === 'Enter') validarSenhaAdmin()">
-            <div class="flex justify-end gap-2 pt-2">
-                <button onclick="fecharModalSenhaAdmin()" class="bg-gray-300 text-gray-700 text-xs px-4 py-2 rounded font-semibold">Cancelar</button>
-                <button onclick="validarSenhaAdmin()" class="bg-emerald-600 text-white text-xs px-4 py-2 rounded font-semibold">Confirmar</button>
-            </div>
-        </div>
-    </div>
+        // Validação da senha
+        if (user.password_hash !== password) {
+            return res.status(401).json({ error: 'E-mail ou senha inválidos' });
+        }
 
-    <!-- MODAL DE TRANSFERÊNCIA DE CONVERSA -->
-    <div id="modal-transferir" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-80 space-y-4">
-            <h3 class="font-bold text-gray-800 text-lg">Transferir Atendente</h3>
-            <p class="text-xs text-gray-500">Selecione o atendente para quem deseja transferir:</p>
-            <select id="select-novo-atendente" class="w-full border rounded px-3 py-2 text-sm bg-white text-gray-700 focus:outline-none focus:border-emerald-500">
-                <!-- Preenchido via JS -->
-            </select>
-            <div class="flex justify-end gap-2 pt-2">
-                <button onclick="fecharModalTransferir()" class="bg-gray-300 text-gray-700 text-xs px-4 py-2 rounded font-semibold">Cancelar</button>
-                <button onclick="confirmarTransferencia()" class="bg-amber-600 text-white text-xs px-4 py-2 rounded font-semibold hover:bg-amber-700 transition">Transferir</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE GERENCIAMENTO GLOBAL DE ATENDENTES -->
-    <div id="modal-gerenciar-atendentes" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[85vh] flex flex-col space-y-4">
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-gray-800 text-lg">Gerenciar Atendentes</h3>
-                <button onclick="fecharModalGerenciarAtendentes()" class="text-gray-500 hover:text-gray-700 font-bold text-lg">✕</button>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto space-y-4 pr-1" id="lista-atendentes-container">
-                <p class="text-sm text-gray-500 text-center py-4">Carregando atendentes...</p>
-            </div>
-
-            <div class="flex justify-end pt-2 border-t">
-                <button onclick="fecharModalGerenciarAtendentes()" class="bg-gray-600 text-white text-xs px-5 py-2 rounded font-semibold hover:bg-gray-700 transition">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let currentTicketId = null;
-        let currentPhone = null;
-        let loggedAgentName = '';
-        let loggedAgentId = '';
-        let loggedAgentDepartments = [];
-
-        // SENHA MESTRA ADMINISTRATIVA DA EMPRESA
-        const SENHA_ADMIN_MESTRE = "webnet2026@admin";
-
-        async function realizarLogin(event) {
-            event.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-
-            try {
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Erro ao fazer login');
-
-                loggedAgentName = data.agent.name;
-                loggedAgentId = data.agent.id;
-                loggedAgentDepartments = data.agent.departments || [];
-
-                document.getElementById('logged-agent-name').innerText = loggedAgentName;
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-screen').classList.remove('hidden');
-
-                carregarTickets();
-                setInterval(() => {
-                    carregarTickets();
-                    if (currentTicketId) carregarMensagens();
-                }, 3000);
-
-            } catch (err) {
-                alert('Falha no login: ' + err.message);
+        // Retorna os dados do atendente para o frontend
+        res.json({
+            success: true,
+            agent: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                departments: user.departments || ['suporte', 'financeiro', 'comercial']
             }
+        });
+    } catch (err) {
+        console.error('Erro no login:', err);
+        res.status(500).json({ error: 'Erro interno no servidor' });
+    }
+});
+
+// ROTA PARA LISTAR TICKETS
+app.get('/api/tickets', async (req, res) => {
+    try {
+        const { agentId, department } = req.query;
+        let query = supabase.from('tickets').select('*, contacts(*), agents(name)');
+
+        if (department) {
+            query = query.eq('department', department);
         }
 
-        async function carregarTickets() {
-            try {
-                const selectedDept = document.getElementById('filter-department').value;
-                let url = `/api/tickets?agentId=${loggedAgentId}`;
-                if (selectedDept) url += `&department=${selectedDept}`;
+        const { data, error } = await query;
+        if (error) throw error;
 
-                const res = await fetch(url);
-                const tickets = await res.json();
-                const listEl = document.getElementById('tickets-list');
-                listEl.innerHTML = '';
+        res.json(data);
+    } catch (err) {
+        console.error('Erro ao buscar tickets:', err);
+        res.status(500).json({ error: 'Erro ao buscar tickets' });
+    }
+});
 
-                if (!Array.isArray(tickets) || tickets.length === 0) {
-                    listEl.innerHTML = '<div class="p-4 text-gray-400 text-center text-sm">Nenhum ticket encontrado para seus setores.</div>';
-                    return;
-                }
+// ROTA PARA BUSCAR MENSAGENS DE UM TICKET
+app.get('/api/tickets/:id/messages', async (req, res) => {
+    try {
+        const ticketId = req.params.id;
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('ticket_id', ticketId)
+            .order('created_at', { ascending: true });
 
-                tickets.forEach(ticket => {
-                    const contato = ticket.contacts || { name: 'Desconhecido', phone_number: '', profile_pic_url: null };
-                    const avatarHtml = contato.profile_pic_url 
-                        ? `<img src="${contato.profile_pic_url}" class="w-10 h-10 rounded-full object-cover">`
-                        : `<div class="w-10 h-10 rounded-full bg-emerald-200 text-emerald-800 flex items-center font-bold justify-center">${(contato.name || 'C').charAt(0).toUpperCase()}</div>`;
+        if (error) throw error;
+        res.json(data);
+    } catch (err) {
+        console.error('Erro ao buscar mensagens:', err);
+        res.status(500).json({ error: 'Erro ao buscar mensagens' });
+    }
+});
 
-                    const deptBadge = ticket.department ? ticket.department.toUpperCase() : 'AGUARDANDO SETOR';
-                    const nomeAtendente = ticket.agents?.name || 'Não atribuído (Livre)';
-                    
-                    const div = document.createElement('div');
-                    div.className = `p-3 cursor-pointer hover:bg-gray-50 transition border-l-4 flex items-center gap-3 ${currentTicketId === ticket.id ? 'bg-emerald-50 border-emerald-600' : 'border-transparent'}`;
-                    div.onclick = () => selecionarTicket(ticket.id, contato.name, contato.phone_number, ticket.department, ticket.assigned_to);
-                    
-                    div.innerHTML = `
-                        ${avatarHtml}
-                        <div class="overflow-hidden flex-1">
-                            <div class="font-bold text-gray-800 truncate">${contato.name}</div>
-                            <div class="text-xs text-gray-500 truncate">${contato.phone_number}</div>
-                            <div class="text-[11px] text-gray-600 mt-0.5 truncate font-medium">👤 ${nomeAtendente}</div>
-                            <div class="text-[10px] mt-1 flex gap-1">
-                                <span class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded uppercase font-semibold">${deptBadge}</span>
-                                <span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded uppercase font-semibold">${ticket.status}</span>
-                            </div>
-                        </div>
-                    `;
-                    listEl.appendChild(div);
-                });
-            } catch (err) {
-                console.error('Erro ao carregar tickets:', err);
-            }
+// ROTA PARA ENVIAR MENSAGEM
+app.post('/api/messages/send', async (req, res) => {
+    try {
+        const { ticketId, phone, message, agentName, agentId } = req.body;
+
+        const { data, error } = await supabase
+            .from('messages')
+            .insert([{
+                ticket_id: ticketId,
+                content: message,
+                sender_type: 'agent',
+                sender_name: agentName || 'Atendente'
+            }]);
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (err) {
+        console.error('Erro ao enviar mensagem:', err);
+        res.status(500).json({ error: 'Erro ao enviar mensagem' });
+    }
+});
+
+// ROTA PARA LISTAR ATENDENTES
+app.get('/api/agents', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, name, email, departments, is_active')
+            .eq('is_active', true);
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err) {
+        console.error('Erro ao listar atendentes:', err);
+        res.status(500).json({ error: 'Erro ao listar atendentes' });
+    }
+});
+
+// ROTA PARA ASSUMIR OU TRANSFERIR TICKET
+app.post('/api/tickets/:id/assign', async (req, res) => {
+    try {
+        const ticketId = req.params.id;
+        const { agentId } = req.body;
+
+        const { data, error } = await supabase
+            .from('tickets')
+            .update({ assigned_to: agentId, status: 'em_atendimento' })
+            .eq('id', ticketId);
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (err) {
+        console.error('Erro ao atribuir ticket:', err);
+        res.status(500).json({ error: 'Erro ao atribuir ticket' });
+    }
+});
+
+// ROTA PARA ALTERAR SETOR
+app.post('/api/tickets/:id/department', async (req, res) => {
+    try {
+        const ticketId = req.params.id;
+        const { department } = req.body;
+
+        const { data, error } = await supabase
+            .from('tickets')
+            .update({ department })
+            .eq('id', ticketId);
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (err) {
+        console.error('Erro ao alterar setor:', err);
+        res.status(500).json({ error: 'Erro ao alterar setor' });
+    }
+});
+
+// ROTA PARA ENCERRAR ATENDIMENTO
+app.post('/api/tickets/:id/close', async (req, res) => {
+    try {
+        const ticketId = req.params.id;
+
+        const { data, error } = await supabase
+            .from('tickets')
+            .update({ status: 'encerrado' })
+            .eq('id', ticketId);
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (err) {
+        console.error('Erro ao encerrar atendimento:', err);
+        res.status(500).json({ error: 'Erro ao encerrar atendimento' });
+    }
+});
+
+// ROTA PARA ATUALIZAR SENHA DE ATENDENTE
+app.put('/api/agents/:id/password', async (req, res) => {
+    try {
+        const agentId = req.params.id;
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json({ error: 'A nova senha é obrigatória' });
         }
 
-        function solicitarSenhaAdmin() {
-            document.getElementById('admin-master-password').value = '';
-            document.getElementById('modal-senha-admin').classList.remove('hidden');
-        }
-        function fecharModalSenhaAdmin() {
-            document.getElementById('modal-senha-admin').classList.add('hidden');
-        }
-        function validarSenhaAdmin() {
-            const senhaDigitada = document.getElementById('admin-master-password').value;
-            if (senhaDigitada === SENHA_ADMIN_MESTRE) {
-                fecharModalSenhaAdmin();
-                abrirModalGerenciarAtendentes();
-            } else {
-                alert('Senha administrativa incorreta!');
-            }
-        }
+        const { data, error } = await supabase
+            .from('users')
+            .update({ password_hash: password })
+            .eq('id', agentId);
 
-        async function abrirModalGerenciarAtendentes() {
-            document.getElementById('modal-gerenciar-atendentes').classList.remove('hidden');
-            await carregarListaAtendentesAdmin();
-        }
-        function fecharModalGerenciarAtendentes() { document.getElementById('modal-gerenciar-atendentes').classList.add('hidden'); }
+        if (error) throw error;
+        res.json({ success: true, message: 'Senha atualizada com sucesso' });
+    } catch (err) {
+        console.error('Erro ao atualizar senha:', err);
+        res.status(500).json({ error: 'Erro ao atualizar senha' });
+    }
+});
 
-        async function carregarListaAtendentesAdmin() {
-            const container = document.getElementById('lista-atendentes-container');
-            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Carregando...</p>';
-            try {
-                const res = await fetch('/api/agents');
-                const agents = await res.json();
-                
-                if (!agents || agents.length === 0) {
-                    container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Nenhum atendente cadastrado.</p>';
-                    return;
-                }
+// ROTA PARA ATUALIZAR SETORES DE ATENDENTE
+app.post('/api/agents/:id/departments', async (req, res) => {
+    try {
+        const agentId = req.params.id;
+        const { departments } = req.body;
 
-                container.innerHTML = '';
-                agents.forEach(agent => {
-                    const depts = agent.departments || [];
-                    const card = document.createElement('div');
-                    card.className = 'border rounded-lg p-4 bg-gray-50 space-y-3';
-                    card.innerHTML = `
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-sm">${agent.name}</h4>
-                                <p class="text-xs text-gray-500">${agent.email}</p>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 border-t pt-2">
-                            <div>
-                                <span class="block text-[11px] font-semibold text-gray-600 mb-1">Setores Permitidos:</span>
-                                <div class="space-y-1 text-xs text-gray-700">
-                                    <label class="flex items-center gap-1.5"><input type="checkbox" value="suporte" data-agent="${agent.id}" class="agent-dept-${agent.id}" ${depts.includes('suporte') ? 'checked' : ''}> Suporte</label>
-                                    <label class="flex items-center gap-1.5"><input type="checkbox" value="financeiro" data-agent="${agent.id}" class="agent-dept-${agent.id}" ${depts.includes('financeiro') ? 'checked' : ''}> Financeiro</label>
-                                    <label class="flex items-center gap-1.5"><input type="checkbox" value="comercial" data-agent="${agent.id}" class="agent-dept-${agent.id}" ${depts.includes('comercial') ? 'checked' : ''}> Comercial</label>
-                                </div>
-                                <button onclick="salvarSetoresAtendente('${agent.id}')" class="mt-2 bg-emerald-600 text-white text-[11px] px-3 py-1 rounded font-semibold hover:bg-emerald-700 transition">Salvar Setores</button>
-                            </div>
-                            <div class="border-l pl-4 flex flex-col justify-between">
-                                <div>
-                                    <span class="block text-[11px] font-semibold text-gray-600 mb-1">Alterar Senha:</span>
-                                    <input type="password" id="new-pass-${agent.id}" placeholder="Nova senha" class="w-full border rounded px-2 py-1 text-xs mb-2 focus:outline-none focus:border-emerald-500">
-                                </div>
-                                <button onclick="alterarSenhaAtendente('${agent.id}')" class="bg-blue-600 text-white text-[11px] px-3 py-1 rounded font-semibold hover:bg-blue-700 transition">Atualizar Senha</button>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (err) {
-                container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">Erro ao carregar lista de atendentes.</p>';
-            }
-        }
+        const { data, error } = await supabase
+            .from('users')
+            .update({ departments })
+            .eq('id', agentId);
 
-        async function salvarSetoresAtendente(agentId) {
-            const checkboxes = document.querySelectorAll(`.agent-dept-${agentId}:checked`);
-            const departments = Array.from(checkboxes).map(cb => cb.value);
-            try {
-                const res = await fetch(`/api/agents/${agentId}/departments`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ departments })
-                });
-                if (!res.ok) throw new Error();
-                alert('Setores do atendente atualizados com sucesso!');
-                if (agentId === loggedAgentId) loggedAgentDepartments = departments;
-            } catch (err) {
-                alert('Erro ao atualizar setores.');
-            }
-        }
+        if (error) throw error;
+        res.json({ success: true, message: 'Setores atualizados com sucesso' });
+    } catch (err) {
+        console.error('Erro ao atualizar setores:', err);
+        res.status(500).json({ error: 'Erro ao atualizar setores' });
+    }
+});
 
-        async function alterarSenhaAtendente(agentId) {
-            const input = document.getElementById(`new-pass-${agentId}`);
-            const password = input.value.trim();
-            if (!password) {
-                alert('Digite a nova senha.');
-                return;
-            }
-            try {
-                const res = await fetch(`/api/agents/${agentId}/password`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Erro ao alterar senha');
-                alert('Senha alterada com sucesso!');
-                input.value = '';
-            } catch (err) {
-                alert('Erro: ' + err.message);
-            }
-        }
-
-        function selecionarTicket(ticketId, nome, telefone, department, assignedTo) {
-            currentTicketId = ticketId;
-            currentPhone = telefone;
-            const headerText = `Conversando com: ${nome} (${telefone})`;
-            document.getElementById('chat-header-text').innerText = headerText;
-            
-            const deptChanger = document.getElementById('department-changer-container');
-            deptChanger.classList.remove('hidden');
-            const selectDept = document.getElementById('select-change-department');
-            if (department) selectDept.value = department;
-
-            const btnAssumir = document.getElementById('btn-assumir');
-            const btnTransferir = document.getElementById('btn-transferir');
-            const btnEncerrar = document.getElementById('btn-encerrar');
-
-            if (!assignedTo || assignedTo !== loggedAgentId) {
-                btnAssumir.classList.remove('hidden');
-                btnTransferir.classList.add('hidden');
-                btnEncerrar.classList.add('hidden');
-            } else {
-                btnAssumir.classList.add('hidden');
-                btnTransferir.classList.remove('hidden');
-                btnEncerrar.classList.remove('hidden');
-            }
-            
-            document.getElementById('message-input').disabled = false;
-            document.getElementById('send-btn').disabled = false;
-            
-            carregarMensagens();
-        }
-
-        async function alterarSetorTicket(novoSetor) {
-            if (!currentTicketId || !currentPhone) return;
-            try {
-                const res = await fetch(`/api/tickets/${currentTicketId}/department`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ department: novoSetor, phone: currentPhone })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Erro ao atualizar setor');
-                alert(`Setor alterado para ${novoSetor.toUpperCase()} com sucesso! Notificação enviada ao cliente.`);
-                carregarTickets();
-            } catch (err) {
-                alert('Erro ao alterar setor: ' + err.message);
-            }
-        }
-
-        async function assumirConversa() {
-            if (!currentTicketId) return;
-            try {
-                const res = await fetch(`/api/tickets/${currentTicketId}/assign`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agentId: loggedAgentId })
-                });
-                if (!res.ok) throw new Error();
-                alert('Você assumiu esta conversa com sucesso!');
-                document.getElementById('btn-assumir').classList.add('hidden');
-                document.getElementById('btn-transferir').classList.remove('hidden');
-                document.getElementById('btn-encerrar').classList.remove('hidden');
-                carregarTickets();
-            } catch (err) {
-                alert('Não foi possível assumir o atendimento.');
-            }
-        }
-
-        async function encerrarAtendimento() {
-            if (!currentTicketId) return;
-            if (!confirm('Deseja realmente encerrar este atendimento?')) return;
-
-            try {
-                const res = await fetch(`/api/tickets/${currentTicketId}/close`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agentId: loggedAgentId })
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Erro ao encerrar atendimento');
-
-                alert('Atendimento encerrado com sucesso!');
-                currentTicketId = null;
-                currentPhone = null;
-
-                document.getElementById('chat-messages').innerHTML = '<div class="text-gray-400 text-center my-auto">Atendimento encerrado. Selecione outra conversa.</div>';
-                document.getElementById('chat-header-text').innerText = 'Selecione uma conversa ao lado para iniciar';
-                document.getElementById('department-changer-container').classList.add('hidden');
-                document.getElementById('btn-assumir').classList.add('hidden');
-                document.getElementById('btn-transferir').classList.add('hidden');
-                document.getElementById('btn-encerrar').classList.add('hidden');
-                document.getElementById('message-input').disabled = true;
-                document.getElementById('send-btn').disabled = true;
-
-                carregarTickets();
-            } catch (err) {
-                alert('Não foi possível encerrar: ' + err.message);
-            }
-        }
-
-        async function abrirModalTransferir() {
-            if (!currentTicketId) return;
-            const select = document.getElementById('select-novo-atendente');
-            select.innerHTML = '<option value="">Carregando...</option>';
-            document.getElementById('modal-transferir').classList.remove('hidden');
-
-            try {
-                const res = await fetch('/api/agents');
-                const agents = await res.json();
-                select.innerHTML = '';
-                
-                if (!agents || agents.length === 0) {
-                    select.innerHTML = '<option value="">Nenhum atendente disponível</option>';
-                    return;
-                }
-
-                agents.forEach(agent => {
-                    if (agent.id !== loggedAgentId) {
-                        const opt = document.createElement('option');
-                        opt.value = agent.id;
-                        opt.textContent = `${agent.name} (${agent.email})`;
-                        select.appendChild(opt);
-                    }
-                });
-            } catch (err) {
-                select.innerHTML = '<option value="">Erro ao carregar atendentes</option>';
-            }
-        }
-
-        function fecharModalTransferir() {
-            document.getElementById('modal-transferir').classList.add('hidden');
-        }
-
-        async function confirmarTransferencia() {
-            const novoAgentId = document.getElementById('select-novo-atendente').value;
-            if (!novoAgentId || !currentTicketId) {
-                alert('Selecione um atendente válido.');
-                return;
-            }
-
-            try {
-                const res = await fetch(`/api/tickets/${currentTicketId}/assign`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agentId: novoAgentId })
-                });
-                if (!res.ok) throw new Error('Erro ao transferir');
-                
-                alert('Conversa transferida com sucesso!');
-                fecharModalTransferir();
-                document.getElementById('btn-transferir').classList.add('hidden');
-                document.getElementById('btn-encerrar').classList.add('hidden');
-                carregarTickets();
-            } catch (err) {
-                alert('Não foi possível transferir a conversa.');
-            }
-        }
-
-        async function carregarMensagens() {
-            if (!currentTicketId) return;
-            try {
-                const res = await fetch(`/api/tickets/${currentTicketId}/messages?agentId=${loggedAgentId}`);
-                
-                if (res.status === 403) {
-                    const chatEl = document.getElementById('chat-messages');
-                    chatEl.innerHTML = '<div class="text-red-500 text-center my-auto text-sm font-semibold">Acesso negado: Você não possui permissão para ver este setor.</div>';
-                    document.getElementById('message-input').disabled = true;
-                    document.getElementById('send-btn').disabled = true;
-                    return;
-                }
-
-                const messages = await res.json();
-                const chatEl = document.getElementById('chat-messages');
-                chatEl.innerHTML = '';
-                if (!Array.isArray(messages) || messages.length === 0) {
-                    chatEl.innerHTML = '<div class="text-gray-400 text-center my-auto text-sm">Nenhuma mensagem neste chat ainda.</div>';
-                    return;
-                }
-                messages.forEach(msg => {
-                    const isAgent = msg.sender_type === 'agent';
-                    const container = document.createElement('div');
-                    container.className = `flex flex-col max-w-xs lg:max-w-md ${isAgent ? 'self-end ml-auto items-end' : 'self-start mr-auto items-start'}`;
-                    const label = document.createElement('span');
-                    label.className = 'text-[10px] text-gray-500 mb-0.5 px-1 font-semibold';
-                    label.innerText = isAgent ? (msg.sender_name || 'Atendente') : 'Cliente';
-                    const bubble = document.createElement('div');
-                    bubble.className = `px-4 py-2 rounded-lg text-sm ${isAgent ? 'bg-emerald-600 text-white' : 'bg-white text-gray-800 border'}`;
-                    bubble.innerText = msg.content;
-                    container.appendChild(label);
-                    container.appendChild(bubble);
-                    chatEl.appendChild(container);
-                });
-                chatEl.scrollTop = chatEl.scrollHeight;
-            } catch (err) {
-                console.error('Erro ao carregar mensagens:', err);
-            }
-        }
-
-        async function enviarMensagem() {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            if (!text || !currentTicketId || !currentPhone) return;
-            try {
-                const res = await fetch('/api/messages/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        ticketId: currentTicketId, 
-                        phone: currentPhone, 
-                        message: text, 
-                        agentName: loggedAgentName,
-                        agentId: loggedAgentId 
-                    })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Erro ao enviar');
-                input.value = '';
-                await carregarMensagens();
-            } catch (err) {
-                alert('Não foi possível enviar a mensagem: ' + err.message);
-            }
-        }
-    </script>
-</body>
-</html>
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
