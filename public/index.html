@@ -158,7 +158,7 @@
             const password = document.getElementById('login-password').value;
 
             try {
-                const res = await fetch('http://localhost:3000/api/auth/login', {
+                const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
@@ -189,7 +189,7 @@
         async function carregarTickets() {
             try {
                 const selectedDept = document.getElementById('filter-department').value;
-                let url = `http://localhost:3000/api/tickets?agentId=${loggedAgentId}`;
+                let url = `/api/tickets?agentId=${loggedAgentId}`;
                 if (selectedDept) url += `&department=${selectedDept}`;
 
                 const res = await fetch(url);
@@ -261,7 +261,7 @@
             const container = document.getElementById('lista-atendentes-container');
             container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Carregando...</p>';
             try {
-                const res = await fetch('http://localhost:3000/api/agents');
+                const res = await fetch('/api/agents');
                 const agents = await res.json();
                 
                 if (!agents || agents.length === 0) {
@@ -311,7 +311,7 @@
             const checkboxes = document.querySelectorAll(`.agent-dept-${agentId}:checked`);
             const departments = Array.from(checkboxes).map(cb => cb.value);
             try {
-                const res = await fetch(`http://localhost:3000/api/agents/${agentId}/departments`, {
+                const res = await fetch(`/api/agents/${agentId}/departments`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ departments })
@@ -332,7 +332,7 @@
                 return;
             }
             try {
-                const res = await fetch(`http://localhost:3000/api/agents/${agentId}/password`, {
+                const res = await fetch(`/api/agents/${agentId}/password`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password })
@@ -352,7 +352,6 @@
             const headerText = `Conversando com: ${nome} (${telefone})`;
             document.getElementById('chat-header-text').innerText = headerText;
             
-            // Exibir seletor de alteração manual de setor
             const deptChanger = document.getElementById('department-changer-container');
             deptChanger.classList.remove('hidden');
             const selectDept = document.getElementById('select-change-department');
@@ -381,7 +380,7 @@
         async function alterarSetorTicket(novoSetor) {
             if (!currentTicketId || !currentPhone) return;
             try {
-                const res = await fetch(`http://localhost:3000/api/tickets/${currentTicketId}/department`, {
+                const res = await fetch(`/api/tickets/${currentTicketId}/department`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ department: novoSetor, phone: currentPhone })
@@ -398,7 +397,7 @@
         async function assumirConversa() {
             if (!currentTicketId) return;
             try {
-                const res = await fetch(`http://localhost:3000/api/tickets/${currentTicketId}/assign`, {
+                const res = await fetch(`/api/tickets/${currentTicketId}/assign`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ agentId: loggedAgentId })
@@ -419,7 +418,7 @@
             if (!confirm('Deseja realmente encerrar este atendimento?')) return;
 
             try {
-                const res = await fetch(`http://localhost:3000/api/tickets/${currentTicketId}/close`, {
+                const res = await fetch(`/api/tickets/${currentTicketId}/close`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ agentId: loggedAgentId })
@@ -454,7 +453,7 @@
             document.getElementById('modal-transferir').classList.remove('hidden');
 
             try {
-                const res = await fetch('http://localhost:3000/api/agents');
+                const res = await fetch('/api/agents');
                 const agents = await res.json();
                 select.innerHTML = '';
                 
@@ -488,7 +487,7 @@
             }
 
             try {
-                const res = await fetch(`http://localhost:3000/api/tickets/${currentTicketId}/assign`, {
+                const res = await fetch(`/api/tickets/${currentTicketId}/assign`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ agentId: novoAgentId })
@@ -508,7 +507,7 @@
         async function carregarMensagens() {
             if (!currentTicketId) return;
             try {
-                const res = await fetch(`http://localhost:3000/api/tickets/${currentTicketId}/messages?agentId=${loggedAgentId}`);
+                const res = await fetch(`/api/tickets/${currentTicketId}/messages?agentId=${loggedAgentId}`);
                 
                 if (res.status === 403) {
                     const chatEl = document.getElementById('chat-messages');
@@ -550,7 +549,7 @@
             const text = input.value.trim();
             if (!text || !currentTicketId || !currentPhone) return;
             try {
-                const res = await fetch('http://localhost:3000/api/messages/send', {
+                const res = await fetch('/api/messages/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
