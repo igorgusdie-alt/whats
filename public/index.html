@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Net - Painel de Atendimento</title>
-    <!-- Favicon ajustado para a aba do navegador -->
+    <!-- Favicon -->
     <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4gKgSUNDX1BST0ZJTEUAAQEAAAKQbGNtcwIQAABtbnRyUkdCIFhZWiAH3gAEABkACwAsACthY3NwTVNGVAAAAABkZXN0UGFlci5mYnVjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABtY3JzAQAAAWgAAAA0d3RwdAAAA8gAAAAUY3BydAAAABQAAAAsdGV4dAAAAABDb3B5cmlnaHQgQ2op..." />
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +16,8 @@
     <div id="login-screen" class="flex items-center justify-center h-full bg-slate-950 absolute inset-0 z-50">
         <div class="bg-slate-900 p-8 rounded-xl shadow-2xl border border-slate-800 w-full max-w-md">
             <div class="text-center mb-6 flex flex-col items-center">
-                <img id="login-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=Web+Net';">
+                <img id="login-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.style.display='none'; document.getElementById('login-logo-fallback').classList.remove('hidden');">
+                <div id="login-logo-fallback" class="hidden h-24 w-24 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-2xl mb-4">WN</div>
                 <h1 class="text-2xl font-bold tracking-wide">Web Net Atendimento</h1>
                 <p class="text-xs text-slate-400 mt-1">Faça login para acessar o painel</p>
             </div>
@@ -42,7 +43,8 @@
         <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
             <div>
                 <div class="p-5 border-b border-slate-800 flex items-center justify-center">
-                    <img id="sidebar-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.src='https://via.placeholder.com/120?text=Web+Net';">
+                    <img id="sidebar-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.style.display='none'; document.getElementById('sidebar-logo-fallback').classList.remove('hidden');">
+                    <div id="sidebar-logo-fallback" class="hidden text-blue-400 font-bold text-lg tracking-wider">WEB NET</div>
                 </div>
                 <nav class="p-3 space-y-1">
                     <button onclick="mudarAba('atendimento')" id="nav-atendimento" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition">
@@ -78,13 +80,11 @@
                     <h2 class="font-bold text-sm text-slate-200">Conversas</h2>
                     <button onclick="carregarTickets()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-rotate"></i></button>
                 </div>
-                <div id="tickets-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60">
-                    <!-- Preenchido via JS -->
-                </div>
+                <div id="tickets-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60"></div>
             </section>
 
             <!-- Chat Ativo -->
-            <section class="flex-1 flex flex-col bg-slate-950">
+            <section class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
                 <div id="chat-header" class="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center hidden">
                     <div class="flex items-center gap-3">
                         <img id="chat-contact-pic" src="" class="w-9 h-9 rounded-full object-cover bg-slate-800" onerror="this.src='https://via.placeholder.com/40?text=U'">
@@ -127,13 +127,11 @@
                     <h2 class="font-bold text-sm text-slate-200">Histórico de Conversas</h2>
                     <button onclick="carregarHistorico()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-rotate"></i></button>
                 </div>
-                <div id="history-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60">
-                    <!-- Preenchido via JS -->
-                </div>
+                <div id="history-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60"></div>
             </section>
 
-            <!-- Visualização do Histórico Selecionado -->
-            <section class="flex-1 flex flex-col bg-slate-950">
+            <!-- Visualização do Histórico Selecionado (CORRIGIDO PARA ROLAGEM CORRETA) -->
+            <section class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
                 <div id="history-header" class="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3 hidden">
                     <img id="history-contact-pic" src="" class="w-9 h-9 rounded-full object-cover bg-slate-800" onerror="this.src='https://via.placeholder.com/40?text=U'">
                     <div>
@@ -184,8 +182,7 @@
                                 <th class="p-4 text-right">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="agents-table-body" class="divide-y divide-slate-800">
-                        </tbody>
+                        <tbody id="agents-table-body" class="divide-y divide-slate-800"></tbody>
                     </table>
                 </div>
             </div>
@@ -246,9 +243,7 @@
             <h3 class="text-lg font-bold mb-2 text-slate-100">Transferir Atendimento</h3>
             <p class="text-xs text-slate-400 mb-4">Selecione o atendente que irá assumir esta conversa:</p>
             <div class="space-y-3">
-                <select id="select-novo-atendente" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
-                    <!-- Preenchido via JS -->
-                </select>
+                <select id="select-novo-atendente" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-slate-200"></select>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="fecharModalTransferir()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg transition">Cancelar</button>
                     <button type="button" onclick="confirmarTransferencia()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded-lg transition font-medium">Transferir</button>
@@ -280,6 +275,10 @@
             if (logoSalva) {
                 document.getElementById('login-logo-img').src = logoSalva;
                 document.getElementById('sidebar-logo-img').src = logoSalva;
+                document.getElementById('login-logo-img').style.display = 'block';
+                document.getElementById('sidebar-logo-img').style.display = 'block';
+                document.getElementById('login-logo-fallback').classList.add('hidden');
+                document.getElementById('sidebar-logo-fallback').classList.add('hidden');
             }
         }
 
@@ -346,7 +345,7 @@
                     listaAtendentesSistema = await res.json();
                 }
             } catch (e) {
-                console.error('Erro ao carregar atendentes para transferência:', e);
+                console.error('Erro ao carregar atendentes:', e);
             }
         }
 
@@ -399,13 +398,10 @@
 
                 tickets.forEach(t => {
                     const contact = t.contacts || { name: 'Cliente', phone_number: '' };
-                    
                     let responsavelOuUltimo = t.last_agent_name || t.agent_name || 'Aguardando';
                     if (t.messages && t.messages.length > 0) {
                         const ultimaMsg = t.messages[t.messages.length - 1];
-                        if (ultimaMsg.sender_name) {
-                            responsavelOuUltimo = ultimaMsg.sender_name;
-                        }
+                        if (ultimaMsg.sender_name) responsavelOuUltimo = ultimaMsg.sender_name;
                     }
 
                     const div = document.createElement('div');
@@ -439,7 +435,7 @@
             document.getElementById('chat-contact-phone').textContent = phone;
             document.getElementById('chat-contact-pic').src = pic || 'https://via.placeholder.com/40?text=U';
 
-            await carregarMensagens(true); // Força rolagem na seleção
+            await carregarMensagens(true);
             if (intervaloMensagens) clearInterval(intervaloMensagens);
             intervaloMensagens = setInterval(() => carregarMensagens(false), 2500);
         }
@@ -450,12 +446,9 @@
                 const res = await fetch(`/api/tickets/${ticketAtualId}/messages?agentId=${usuarioLogado.id}`);
                 const msgs = await res.json();
                 const container = document.getElementById('chat-messages');
-                
-                // Verifica se o usuário está perto do fim para decidir se rola automaticamente (evita travar se ele estiver lendo mensagens antigas)
                 const estaNoFim = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
 
                 container.innerHTML = '';
-
                 if (msgs.length === 0) {
                     container.innerHTML = '<div class="m-auto text-center text-slate-500 text-xs">Nenhuma mensagem registrada nesta conversa.</div>';
                     return;
@@ -467,16 +460,12 @@
                     bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
                     
                     let conteudoHtml = `<p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>`;
-                    
                     if (m.media_url || m.type === 'image') {
                         const urlMidia = m.media_url || m.content;
                         conteudoHtml += `<img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">`;
                     }
 
-                    bubble.innerHTML = `
-                        <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
-                        ${conteudoHtml}
-                    `;
+                    bubble.innerHTML = `<p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>${conteudoHtml}`;
                     container.appendChild(bubble);
                 });
 
@@ -498,17 +487,11 @@
                 const res = await fetch('/api/messages/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ticketId: ticketAtualId,
-                        phone: ticketAtualTelefone,
-                        message: message,
-                        agentName: usuarioLogado.name,
-                        agentId: usuarioLogado.id
-                    })
+                    body: JSON.stringify({ ticketId: ticketAtualId, phone: ticketAtualTelefone, message, agentName: usuarioLogado.name, agentId: usuarioLogado.id })
                 });
                 if (!res.ok) throw new Error('Erro ao enviar mensagem');
                 input.value = '';
-                await carregarMensagens(true); // Força descer para o fim ao enviar
+                await carregarMensagens(true);
                 carregarTickets();
             } catch (e) {
                 alert('Erro ao enviar mensagem: ' + e.message);
@@ -519,7 +502,6 @@
             if (!ticketAtualId) return;
             const select = document.getElementById('select-novo-atendente');
             select.innerHTML = '';
-
             const outrosAtendentes = listaAtendentesSistema.filter(a => a.id !== usuarioLogado.id);
 
             if (outrosAtendentes.length === 0) {
@@ -532,7 +514,6 @@
                     select.appendChild(opt);
                 });
             }
-
             document.getElementById('modal-transferir').classList.remove('hidden');
         }
 
@@ -542,10 +523,7 @@
 
         async function confirmarTransferencia() {
             const novoAtendenteId = document.getElementById('select-novo-atendente').value;
-            if (!novoAtendenteId) {
-                alert('Selecione um atendente válido.');
-                return;
-            }
+            if (!novoAtendenteId) return alert('Selecione um atendente válido.');
 
             const atendenteObj = listaAtendentesSistema.find(a => a.id === novoAtendenteId);
             const nomeNovoAtendente = atendenteObj ? atendenteObj.name : 'outro atendente';
@@ -554,25 +532,18 @@
                 const res = await fetch(`/api/tickets/${ticketAtualId}/transfer`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        newAgentId: novoAtendenteId,
-                        newAgentName: nomeNovoAtendente,
-                        transferrerName: usuarioLogado.name
-                    })
+                    body: JSON.stringify({ newAgentId: novoAtendenteId, newAgentName: nomeNovoAtendente, transferrerName: usuarioLogado.name })
                 });
-
-                if (!res.ok) throw new Error('Erro ao transferir atendimento');
+                if (!res.ok) throw new Error('Erro ao transferir');
 
                 alert(`Atendimento transferido para ${nomeNovoAtendente} com sucesso!`);
                 fecharModalTransferir();
-
                 ticketAtualId = null;
                 document.getElementById('chat-header').classList.add('hidden');
                 document.getElementById('chat-input-form').classList.add('hidden');
                 document.getElementById('chat-messages').innerHTML = '<div class="m-auto text-center text-slate-500 text-sm">Atendimento transferido.</div>';
                 if (intervaloMensagens) clearInterval(intervaloMensagens);
                 carregarTickets();
-
             } catch (e) {
                 alert('Erro ao transferir: ' + e.message);
             }
@@ -593,7 +564,7 @@
             }
         }
 
-        // --- FUNÇÕES DA ABA HISTÓRICO ---
+        // --- ABA HISTÓRICO ---
         async function carregarHistorico() {
             try {
                 const res = await fetch('/api/tickets/history');
@@ -661,14 +632,10 @@
                     conteudoHtml += `<img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">`;
                 }
 
-                bubble.innerHTML = `
-                    <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
-                    ${conteudoHtml}
-                `;
+                bubble.innerHTML = `<p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>${conteudoHtml}`;
                 container.appendChild(bubble);
             });
             
-            // Força a rolagem para o fim ao carregar o histórico selecionado
             container.scrollTop = container.scrollHeight;
         }
 
@@ -719,10 +686,7 @@
             document.getElementById('agent-role').value = agent.role;
 
             const checkboxes = document.querySelectorAll('input[name="agent-dept"]');
-            checkboxes.forEach(cb => {
-                cb.checked = agent.departments.includes(cb.value);
-            });
-
+            checkboxes.forEach(cb => cb.checked = agent.departments.includes(cb.value));
             document.getElementById('modal-atendente').classList.remove('hidden');
         }
 
@@ -730,28 +694,25 @@
             event.preventDefault();
             const id = document.getElementById('edit-agent-id').value;
             const name = document.getElementById('agent-name').value;
-            const email = document.getElementById('agent-email').value;
+            const email = document.getElementById('agent-email5'] || document.getElementById('agent-email').value;
+            const emailVal = document.getElementById('agent-email').value;
             const password = document.getElementById('agent-password').value;
             const role = document.getElementById('agent-role').value;
 
             const departments = [];
-            document.querySelectorAll('input[name="agent-dept"]:checked').forEach(cb => {
-                departments.push(cb.value);
-            });
+            document.querySelectorAll('input[name="agent-dept"]:checked').forEach(cb => departments.push(cb.value));
 
-            const payload = { name, email, role, departments };
+            const payload = { name, email: emailVal, role, departments };
             if (password) payload.password = password;
 
             try {
                 const url = id ? `/api/admin/agents/${id}` : '/api/admin/agents';
                 const method = id ? 'PUT' : 'POST';
-
                 const res = await fetch(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
 
