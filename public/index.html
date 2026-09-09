@@ -439,17 +439,21 @@
             document.getElementById('chat-contact-phone').textContent = phone;
             document.getElementById('chat-contact-pic').src = pic || 'https://via.placeholder.com/40?text=U';
 
-            await carregarMensagens();
+            await carregarMensagens(true); // Força rolagem na seleção
             if (intervaloMensagens) clearInterval(intervaloMensagens);
-            intervaloMensagens = setInterval(carregarMensagens, 2500);
+            intervaloMensagens = setInterval(() => carregarMensagens(false), 2500);
         }
 
-        async function carregarMensagens() {
+        async function carregarMensagens(forcarRolagem = false) {
             if (!ticketAtualId) return;
             try {
                 const res = await fetch(`/api/tickets/${ticketAtualId}/messages?agentId=${usuarioLogado.id}`);
                 const msgs = await res.json();
                 const container = document.getElementById('chat-messages');
+                
+                // Verifica se o usuário está perto do fim para decidir se rola automaticamente (evita travar se ele estiver lendo mensagens antigas)
+                const estaNoFim = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+
                 container.innerHTML = '';
 
                 if (msgs.length === 0) {
@@ -475,7 +479,10 @@
                     `;
                     container.appendChild(bubble);
                 });
-                container.scrollTop = container.scrollHeight;
+
+                if (forcarRolagem || estaNoFim) {
+                    container.scrollTop = container.scrollHeight;
+                }
             } catch (e) {
                 console.error('Erro ao carregar mensagens:', e);
             }
@@ -501,7 +508,7 @@
                 });
                 if (!res.ok) throw new Error('Erro ao enviar mensagem');
                 input.value = '';
-                carregarMensagens();
+                await carregarMensagens(true); // Força descer para o fim ao enviar
                 carregarTickets();
             } catch (e) {
                 alert('Erro ao enviar mensagem: ' + e.message);
@@ -660,6 +667,8 @@
                 `;
                 container.appendChild(bubble);
             });
+            
+            // Força a rolagem para o fim ao carregar o histórico selecionado
             container.scrollTop = container.scrollHeight;
         }
 
