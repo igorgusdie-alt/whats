@@ -289,6 +289,22 @@ app.get('/api/tickets', async (req, res) => {
   }
 });
 
+// --- ROTA DE HISTÓRICO DE TICKETS FECHADOS ---
+app.get('/api/tickets/history', async (req, res) => {
+  try {
+    let query = supabase.from('tickets')
+      .select(`id, status, department, assigned_to, created_at, closed_at, updated_at, contacts(id, name, phone_number, profile_pic_url), messages(id, sender_type, content, created_at)`)
+      .eq('status', 'closed')
+      .order('updated_at', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/tickets/:ticketId/messages', async (req, res) => {
   const { data } = await supabase.from('messages').select('*').eq('ticket_id', req.params.ticketId).order('created_at', { ascending: true });
   res.json(data || []);
