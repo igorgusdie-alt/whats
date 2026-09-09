@@ -5,7 +5,7 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json({ limit: '10mb' })); // Aumentado para aceitar upload de logo em base64 se necessário
+app.use(express.json({ limit: '10mb' })); 
 app.use(cors());
 
 // Servir arquivos estáticos da pasta public
@@ -97,7 +97,7 @@ app.post('/api/auth/login', async (req, res) => {
         name: user.name,
         email: user.email,
         departments: departments,
-        role: user.role || 'agent' // 'admin' ou 'agent'
+        role: user.role || 'agent'
       }
     });
   } catch (error) {
@@ -106,8 +106,6 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // --- ROTAS ADMINISTRATIVAS DE GERENCIAMENTO DE ATENDENTES ---
-
-// Listar todos os atendentes com seus cargos e setores
 app.get('/api/admin/agents', async (req, res) => {
   try {
     const { data: users, error } = await supabase.from('users').select('id, name, email, role, is_active, created_at');
@@ -126,7 +124,6 @@ app.get('/api/admin/agents', async (req, res) => {
   }
 });
 
-// Cadastrar novo atendente/admin pelo painel admin
 app.post('/api/admin/agents', async (req, res) => {
   try {
     const { name, email, password, role, departments } = req.body;
@@ -151,7 +148,6 @@ app.post('/api/admin/agents', async (req, res) => {
   }
 });
 
-// Atualizar dados, cargo ou senha de um atendente
 app.put('/api/admin/agents/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -182,7 +178,6 @@ app.put('/api/admin/agents/:id', async (req, res) => {
   }
 });
 
-// Excluir atendente
 app.delete('/api/admin/agents/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -218,20 +213,25 @@ app.post('/webhook/whatsapp', async (req, res) => {
         contact = newC;
       }
 
-      let { data: tickets } = await supabase.from('tickets').select('id, status, department').eq('contact_id', contact.id).in('status', ['open', 'pending']).order('created_at', { ascending: false }).limit(1);
+      // Busca o último ticket deste contato para manter a referência unificada
+      let { data: tickets } = await supabase.from('tickets').select('id, status, department').eq('contact_id', contact.id).order('created_at', { ascending: false }).limit(1);
       let ticket = tickets && tickets.length > 0 ? tickets[0] : null;
 
-      if (!ticket) {
+      // Se não houver ticket ou se o último estiver fechado ('closed'), criamos um novo ticket pendente para exigir o setor
+      if (!ticket || ticket.status === 'closed') {
         const { data: newT } = await supabase.from('tickets').insert([{ contact_id: contact.id, status: 'pending', department: null }]).select('id, status, department').single();
         ticket = newT;
+        
+        // Envia a mensagem de boas-vindas pedindo o setor
         await enviarMensagemWhatsApp(cleanPhone, `Olá, *${pushName}*! Seja bem-vindo à Web Net! 💻✨\nEscolha o setor desejado:\n\n1️⃣ - Suporte Técnico\n2️⃣ - Financeiro\n3️⃣ - Comercial`);
         return res.status(200).json({ status: 'welcome_sent' });
       }
 
+      // Se o ticket existe mas ainda está sem setor definido (aguardando a resposta 1, 2 ou 3)
       if (!ticket.department) {
         let escolhido = text === '1' ? 'suporte' : text === '2' ? 'financeiro' : text === '3' ? 'comercial' : null;
         if (escolhido) {
-          await supabase.from('tickets').update({ department: escolhido }).eq('id', ticket.id);
+          await supabase.from('tickets').update({ department: escolhido, status: 'open', updated_at: new Date() }).eq('id', ticket.id);
           await enviarMensagemWhatsApp(cleanPhone, `Você foi direcionado para o setor de **${escolhido.toUpperCase()}**. Um atendente já vai lhe responder!`);
           return res.status(200).json({ status: 'dept_set' });
         } else {
@@ -240,8 +240,10 @@ app.post('/webhook/whatsapp', async (req, res) => {
         }
       }
 
+      // Se veio do cliente e o atendimento já está aberto com setor, salva a mensagem no ticket atual
       if (!fromMe) {
         await supabase.from('messages').insert([{ ticket_id: ticket.id, sender_type: 'client', sender_name: pushName, content: text }]);
+        await supabase.from('tickets').update({ updated_at: new Date() }).eq('id', ticket.id);
       }
     }
     res.status(200).json({ status: 'success' });
@@ -250,11 +252,14 @@ app.post('/webhook/whatsapp', async (req, res) => {
   }
 });
 
-// Rotas padrão de tickets e mensagens do painel
+// Rotas padrão de tickets (traz apenas os abertos/pendentes para a listagem lateral)
 app.get('/api/tickets', async (req, res) => {
   try {
-    const { department, agentId } = req.query;
-    let query = supabase.from('tickets').select(`id, status, department, assigned_to, created_at, contacts(id, name, phone_number, profile_pic_url)`).order('created_at', { ascending: false });
+    let query = supabase.from('tickets')
+      .select(`id, status, department, assigned_to, created_at, updated_at, contacts(id, name, phone_number, profile_pic_url)`)
+      .in('status', ['open', 'pending'])
+      .order('updated_at', { ascending: false });
+
     const { data, error } = await query;
     if (error) throw error;
     res.json(data);
@@ -271,20 +276,29 @@ app.get('/api/tickets/:ticketId/messages', async (req, res) => {
 app.post('/api/messages/send', async (req, res) => {
   try {
     const { ticketId, phone, message, agentName } = req.body;
-    const evolutionResponse = await axios.post(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
+    await axios.post(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       number: phone, text: `*${agentName || 'Atendente'}:*\n${message}`
     }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
 
     await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: agentName || 'Atendente', content: message }]);
+    await supabase.from('tickets').update({ updated_at: new Date() }).eq('id', ticketId);
+    
     res.status(200).json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+// Rota para encerrar o ticket (Fechamento universal por qualquer atendente/admin)
 app.post('/api/tickets/:ticketId/close', async (req, res) => {
-  await supabase.from('tickets').update({ status: 'closed' }).eq('id', req.params.ticketId);
-  res.json({ success: true });
+  try {
+    const { ticketId } = req.params;
+    const { error } = await supabase.from('tickets').update({ status: 'closed', updated_at: new Date() }).eq('id', ticketId);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
