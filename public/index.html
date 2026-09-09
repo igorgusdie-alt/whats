@@ -13,8 +13,11 @@
     <!-- TELA DE LOGIN -->
     <div id="login-screen" class="flex items-center justify-center h-full bg-slate-950 absolute inset-0 z-50">
         <div class="bg-slate-900 p-8 rounded-xl shadow-2xl border border-slate-800 w-full max-w-md">
-            <div class="text-center mb-6">
-                <img id="login-logo" src="sua-logo.png" alt="Logo" class="mx-auto h-16 object-contain mb-3" onerror="this.src='https://via.placeholder.com/150?text=Web+Net'">
+            <div class="text-center mb-6 flex flex-col items-center">
+                <!-- LOGO: Altere o src abaixo para o nome do seu arquivo local (ex: logo.png) ou link direto -->
+                <div class="w-16 h-16 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-center mb-3 text-blue-500 text-2xl shadow-inner">
+                    <i class="fa-solid fa-network-wired"></i>
+                </div>
                 <h1 class="text-2xl font-bold tracking-wide">Web Net Atendimento</h1>
                 <p class="text-xs text-slate-400 mt-1">Faça login para acessar o painel</p>
             </div>
@@ -40,7 +43,9 @@
         <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
             <div>
                 <div class="p-4 border-b border-slate-800 flex items-center gap-3">
-                    <img id="app-logo" src="sua-logo.png" alt="Logo" class="h-9 object-contain" onerror="this.src='https://via.placeholder.com/120?text=Web+Net'">
+                    <div class="w-8 h-8 bg-blue-600/10 border border-blue-500/20 rounded-lg flex items-center justify-center text-blue-500 text-sm">
+                        <i class="fa-solid fa-network-wired"></i>
+                    </div>
                     <span class="font-bold text-sm tracking-tight text-slate-200">Painel Web Net</span>
                 </div>
                 <nav class="p-3 space-y-1">
@@ -200,19 +205,7 @@
         let ticketAtualTelefone = null;
         let intervaloMensagens = null;
 
-        // Ao carregar a página, busca configurações globais (logo)
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const res = await fetch('/api/settings');
-                const settings = await res.json();
-                if (settings.logo_url) {
-                    document.getElementById('login-logo').src = settings.logo_url;
-                    document.getElementById('app-logo').src = settings.logo_url;
-                }
-            } catch (e) {
-                console.error('Erro ao carregar logo:', e);
-            }
-
+        window.addEventListener('DOMContentLoaded', () => {
             const salvo = localStorage.getItem('webnet_agent');
             if (salvo) {
                 usuarioLogado = JSON.parse(salvo);
@@ -399,7 +392,6 @@
             }
         }
 
-        // Funções de Gestão de Atendentes (Admin)
         async function carregarAtendentesAdmin() {
             try {
                 const res = await fetch('/api/admin/agents');
