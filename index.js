@@ -34,9 +34,6 @@ async function fetchProfilePicture(phone) {
 
 async function enviarMensagemWhatsApp(phone, text) {
   try {
-    console.log("DEBUG [enviarMensagemWhatsApp] URL:", `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`);
-    console.log("DEBUG [enviarMensagemWhatsApp] KEY carregada:", EVOLUTION_API_KEY ? EVOLUTION_API_KEY.substring(0, 8) + '...' : 'VAZIA');
-
     await axios.post(
       `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
       { number: phone, text: text },
@@ -197,7 +194,6 @@ app.delete('/api/admin/agents/:id', async (req, res) => {
 app.post('/webhook/whatsapp', async (req, res) => {
   try {
     const { event, data } = req.body;
-    console.log('WEBHOOK EVENT:', event);
 
     if (event === 'messages.upsert') {
       const message = data;
@@ -218,11 +214,9 @@ app.post('/webhook/whatsapp', async (req, res) => {
         contact = newC;
       }
 
-      // Busca o último ticket deste contato
       let { data: tickets } = await supabase.from('tickets').select('id, status, department').eq('contact_id', contact.id).order('created_at', { ascending: false }).limit(1);
       let ticket = tickets && tickets.length > 0 ? tickets[0] : null;
 
-      // Se não houver ticket ou se o último estiver fechado ('closed'), cria um novo ticket pendente
       if (!ticket || ticket.status === 'closed') {
         const now = new Date();
         const { data: newT, error: errNewT } = await supabase.from('tickets').insert([{ 
@@ -235,19 +229,14 @@ app.post('/webhook/whatsapp', async (req, res) => {
           last_message_at: now
         }]).select('id, status, department').single();
 
-        if (errNewT) {
-          console.error('Erro ao inserir ticket no Supabase:', errNewT);
-          return res.status(500).json({ error: errNewT.message });
-        }
+        if (errNewT) return res.status(500).json({ error: errNewT.message });
         
         ticket = newT;
         
-        // Envia a mensagem de boas-vindas pedindo o setor
         await enviarMensagemWhatsApp(cleanPhone, `Olá, *${pushName}*! Seja bem-vindo à Web Net! 💻✨\nEscolha o setor desejado:\n\n1️⃣ - Suporte Técnico\n2️⃣ - Financeiro\n3️⃣ - Comercial`);
         return res.status(200).json({ status: 'welcome_sent' });
       }
 
-      // Se o ticket existe mas ainda está sem setor definido (aguardando a resposta 1, 2 ou 3)
       if (!ticket.department) {
         let escolhido = text === '1' ? 'suporte' : text === '2' ? 'financeiro' : text === '3' ? 'comercial' : null;
         if (escolhido) {
@@ -260,7 +249,6 @@ app.post('/webhook/whatsapp', async (req, res) => {
         }
       }
 
-      // Se veio do cliente e o atendimento já está aberto com setor, salva a mensagem no ticket atual
       if (!fromMe) {
         await supabase.from('messages').insert([{ ticket_id: ticket.id, sender_type: 'client', sender_name: pushName, content: text }]);
         await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
@@ -273,7 +261,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
   }
 });
 
-// Rotas padrão de tickets (traz os abertos/pendentes para a listagem lateral)
+// Rotas padrão de tickets
 app.get('/api/tickets', async (req, res) => {
   try {
     let query = supabase.from('tickets')
@@ -329,9 +317,6 @@ app.get('/api/tickets/:ticketId/messages', async (req, res) => {
 app.post('/api/messages/send', async (req, res) => {
   try {
     const { ticketId, phone, message, agentName } = req.body;
-    
-    console.log("DEBUG [api/messages/send] URL:", `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`);
-    console.log("DEBUG [api/messages/send] KEY carregada:", EVOLUTION_API_KEY ? EVOLUTION_API_KEY.substring(0, 8) + '...' : 'VAZIA');
 
     await axios.post(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       number: phone, text: `*${agentName || 'Atendente'}:*\n${message}`
