@@ -14,9 +14,9 @@
     <div id="login-screen" class="flex items-center justify-center h-full bg-slate-950 absolute inset-0 z-50">
         <div class="bg-slate-900 p-8 rounded-xl shadow-2xl border border-slate-800 w-full max-w-md">
             <div class="text-center mb-6 flex flex-col items-center">
-                <!-- LOGO MAIOR NA TELA DE LOGIN -->
-                <img src="logo.png" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=Web+Net';">
-                <h1 class="text-2xl font-bold tracking-wide">Web Net Soluções em Informática</h1>
+                <!-- LOGO DINÂMICA NA TELA DE LOGIN -->
+                <img id="login-logo-img" src="logo.png" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=Web+Net';">
+                <h1 class="text-2xl font-bold tracking-wide">Web Net Atendimento</h1>
                 <p class="text-xs text-slate-400 mt-1">Faça login para acessar o painel</p>
             </div>
             <form id="login-form" onsubmit="fazerLogin(event)" class="space-y-4">
@@ -41,8 +41,8 @@
         <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
             <div>
                 <div class="p-5 border-b border-slate-800 flex items-center justify-center">
-                    <!-- LOGO MAIOR NA SIDEBAR -->
-                    <img src="logo.png" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.src='https://via.placeholder.com/120?text=Web+Net';">
+                    <!-- LOGO DINÂMICA NA SIDEBAR -->
+                    <img id="sidebar-logo-img" src="logo.png" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.src='https://via.placeholder.com/120?text=Web+Net';">
                 </div>
                 <nav class="p-3 space-y-1">
                     <button onclick="mudarAba('atendimento')" id="nav-atendimento" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition">
@@ -115,6 +115,16 @@
         <!-- CONTEÚDO DA ABA GERENCIAMENTO (ADMIN) -->
         <main id="tab-gerenciamento" class="hidden flex-1 h-full overflow-y-auto p-6 bg-slate-950">
             <div class="max-w-4xl mx-auto space-y-6">
+                <!-- CONFIGURAÇÃO DA LOGO -->
+                <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
+                    <h2 class="text-lg font-bold text-slate-100 mb-1">Personalização da Logo</h2>
+                    <p class="text-xs text-slate-400 mb-4">Envie um arquivo PNG ou JPG para atualizar a logo do sistema instantaneamente.</p>
+                    <div class="flex items-center gap-4">
+                        <input type="file" id="input-logo-file" accept="image/png, image/jpeg" class="text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 file:cursor-pointer">
+                        <button onclick="salvarNovaLogo()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium px-4 py-2 rounded-lg transition shadow-lg shadow-emerald-600/20">Aplicar Nova Logo</button>
+                    </div>
+                </div>
+
                 <div class="flex justify-between items-center bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
                     <div>
                         <h2 class="text-lg font-bold text-slate-100">Gerenciamento de Atendentes</h2>
@@ -202,12 +212,37 @@
         let intervaloMensagens = null;
 
         window.addEventListener('DOMContentLoaded', () => {
+            carregarLogoSalva();
             const salvo = localStorage.getItem('webnet_agent');
             if (salvo) {
                 usuarioLogado = JSON.parse(salvo);
                 entrarNoPainel();
             }
         });
+
+        function carregarLogoSalva() {
+            const logoSalva = localStorage.getItem('webnet_custom_logo');
+            if (logoSalva) {
+                document.getElementById('login-logo-img').src = logoSalva;
+                document.getElementById('sidebar-logo-img').src = logoSalva;
+            }
+        }
+
+        function salvarNovaLogo() {
+            const fileInput = document.getElementById('input-logo-file');
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Image = e.target.result;
+                    localStorage.setItem('webnet_custom_logo', base64Image);
+                    carregarLogoSalva();
+                    alert('Logo atualizada com sucesso!');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                alert('Selecione um arquivo de imagem primeiro.');
+            }
+        }
 
         async function fazerLogin(event) {
             event.preventDefault();
