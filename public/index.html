@@ -14,7 +14,6 @@
     <div id="login-screen" class="flex items-center justify-center h-full bg-slate-950 absolute inset-0 z-50">
         <div class="bg-slate-900 p-8 rounded-xl shadow-2xl border border-slate-800 w-full max-w-md">
             <div class="text-center mb-6 flex flex-col items-center">
-                <!-- LOGO DINÂMICA NA TELA DE LOGIN -->
                 <img id="login-logo-img" src="logo.png" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=Web+Net';">
                 <h1 class="text-2xl font-bold tracking-wide">Web Net Atendimento</h1>
                 <p class="text-xs text-slate-400 mt-1">Faça login para acessar o painel</p>
@@ -41,14 +40,12 @@
         <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
             <div>
                 <div class="p-5 border-b border-slate-800 flex items-center justify-center">
-                    <!-- LOGO DINÂMICA NA SIDEBAR -->
                     <img id="sidebar-logo-img" src="logo.png" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.src='https://via.placeholder.com/120?text=Web+Net';">
                 </div>
                 <nav class="p-3 space-y-1">
                     <button onclick="mudarAba('atendimento')" id="nav-atendimento" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition">
                         <i class="fa-solid fa-headset w-5"></i> Atendimento
                     </button>
-                    <!-- Aba Gerenciamento (Visível apenas para Administradores) -->
                     <button onclick="mudarAba('gerenciamento')" id="nav-gerenciamento" class="hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
                         <i class="fa-solid fa-users-gear w-5"></i> Gerenciamento
                     </button>
@@ -115,7 +112,6 @@
         <!-- CONTEÚDO DA ABA GERENCIAMENTO (ADMIN) -->
         <main id="tab-gerenciamento" class="hidden flex-1 h-full overflow-y-auto p-6 bg-slate-950">
             <div class="max-w-4xl mx-auto space-y-6">
-                <!-- CONFIGURAÇÃO DA LOGO -->
                 <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
                     <h2 class="text-lg font-bold text-slate-100 mb-1">Personalização da Logo</h2>
                     <p class="text-xs text-slate-400 mb-4">Envie um arquivo PNG ou JPG para atualizar a logo do sistema instantaneamente.</p>
@@ -135,7 +131,6 @@
                     </button>
                 </div>
 
-                <!-- Tabela de Atendentes -->
                 <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-lg">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
@@ -148,7 +143,6 @@
                             </tr>
                         </thead>
                         <tbody id="agents-table-body" class="divide-y divide-slate-800">
-                            <!-- Preenchido via JS -->
                         </tbody>
                     </table>
                 </div>
@@ -204,7 +198,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT DA INTERFACE -->
+    <!-- SCRIPT DA INTERFACE COM SUPORTE A MÍDIAS E TEMPO REAL -->
     <script>
         let usuarioLogado = null;
         let ticketAtualId = null;
@@ -280,7 +274,7 @@
             }
 
             carregarTickets();
-            setInterval(carregarTickets, 5000);
+            setInterval(carregarTickets, 4000);
         }
 
         function logout() {
@@ -350,7 +344,7 @@
 
             await carregarMensagens();
             if (intervaloMensagens) clearInterval(intervaloMensagens);
-            intervaloMensagens = setInterval(carregarMensagens, 3000);
+            intervaloMensagens = setInterval(carregarMensagens, 2500);
         }
 
         async function carregarMensagens() {
@@ -370,9 +364,18 @@
                     const isAgent = m.sender_type === 'agent';
                     const bubble = document.createElement('div');
                     bubble.className = `max-w-[70%] p-3 rounded-xl text-xs space-y-1 ${isAgent ? 'bg-blue-600 text-white ml-auto' : 'bg-slate-800 text-slate-200 mr-auto'}`;
+                    
+                    let conteudoHtml = `<p class="whitespace-pre-wrap">${m.content || ''}</p>`;
+                    
+                    // Renderização segura de mídias (Imagens enviadas ou recebidas)
+                    if (m.media_url || m.type === 'image') {
+                        const urlMidia = m.media_url || m.content;
+                        conteudoHtml += `<img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onclick="window.open(this.src)" onerror="this.style.display='none'">`;
+                    }
+
                     bubble.innerHTML = `
                         <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
-                        <p class="whitespace-pre-wrap">${m.content}</p>
+                        ${conteudoHtml}
                     `;
                     container.appendChild(bubble);
                 });
