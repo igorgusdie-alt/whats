@@ -218,6 +218,11 @@ app.post('/webhook/whatsapp', async (req, res) => {
       let ticket = tickets && tickets.length > 0 ? tickets[0] : null;
 
       if (!ticket || ticket.status === 'closed') {
+        // Se a mensagem partiu de você (celular), não cria ticket automático nem manda boas-vindas
+        if (fromMe) {
+          return res.status(200).json({ status: 'ignored_outbound_init' });
+        }
+
         const now = new Date();
         const { data: newT, error: errNewT } = await supabase.from('tickets').insert([{ 
           contact_id: contact.id, 
@@ -238,6 +243,9 @@ app.post('/webhook/whatsapp', async (req, res) => {
       }
 
       if (!ticket.department) {
+        // Se a mensagem partiu de você com ticket sem setor, não processa o robô
+        if (fromMe) return res.status(200).json({ status: 'ignored_outbound' });
+
         let escolhido = text === '1' ? 'suporte' : text === '2' ? 'financeiro' : text === '3' ? 'comercial' : null;
         if (escolhido) {
           await supabase.from('tickets').update({ department: escolhido, status: 'open', updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
