@@ -313,17 +313,19 @@ app.get('/api/tickets/:ticketId/messages', async (req, res) => {
 app.post('/api/messages/send', async (req, res) => {
   try {
     const { ticketId, phone, message, agentName } = req.body;
+    const nomeAtendente = agentName || 'Atendente';
 
     await axios.post(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
-      number: phone, text: `*${agentName \vert{}\vert{} 'Atendente'}:*\n${message}`
+      number: phone, 
+      text: `*${nomeAtendente}:*\n${message}`
     }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
 
-    await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: agentName || 'Atendente', content: message }]);
+    await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: nomeAtendente, content: message }]);
     
     await supabase.from('tickets').update({ 
       updated_at: new Date(), 
       last_message_at: new Date(),
-      last_agent_name: agentName || 'Atendente'
+      last_agent_name: nomeAtendente
     }).eq('id', ticketId);
     
     res.status(200).json({ success: true });
@@ -383,7 +385,7 @@ app.post('/api/tickets/:id/transfer', async (req, res) => {
       ticket_id: ticketId,
       sender_type: 'system',
       sender_name: 'Sistema',
-      content: `Atendimento transferido de ${transferrerName \vert{}\vert{} 'um atendente'} para${newAgentName}.`
+      content: `Atendimento transferido de ${transferrerName || 'um atendente'} para ${newAgentName}.`
     }]);
 
     res.json({ success: true, message: 'Atendimento transferido com sucesso' });
