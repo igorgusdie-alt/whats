@@ -7,8 +7,6 @@ require('dotenv').config();
 const app = express();
 app.use(express.json({ limit: '10mb' })); 
 app.use(cors());
-
-// Servir arquivos estáticos da pasta public
 app.use(express.static('public'));
 
 const supabaseUrl = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/\/$/, '') : '';
@@ -48,7 +46,6 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
 
-// --- ROTA DE CONFIGURAÇÕES GLOBAIS (LOGO, ETC) ---
 app.get('/api/settings', async (req, res) => {
   try {
     const { data, error } = await supabase.from('settings').select('*');
@@ -64,9 +61,7 @@ app.get('/api/settings', async (req, res) => {
 app.post('/api/settings', async (req, res) => {
   try {
     const { key, value } = req.body;
-    const { error } = await supabase
-      .from('settings')
-      .upsert({ key, value }, { onConflict: 'key' });
+    const { error } = await supabase.from('settings').upsert({ key, value }, { onConflict: 'key' });
     if (error) throw error;
     res.json({ success: true });
   } catch (error) {
@@ -74,7 +69,6 @@ app.post('/api/settings', async (req, res) => {
   }
 });
 
-// --- ROTA DE LOGIN COM RETORNO DE HIERARQUIA (ROLE) ---
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -105,7 +99,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// --- ROTAS ADMINISTRATIVAS DE GERENCIAMENTO DE ATENDENTES ---
 app.get('/api/admin/agents', async (req, res) => {
   try {
     const { data: users, error } = await supabase.from('users').select('id, name, email, role, is_active, created_at');
@@ -190,7 +183,6 @@ app.delete('/api/admin/agents/:id', async (req, res) => {
   }
 });
 
-// --- WEBHOOK WHATSAPP ---
 app.post('/webhook/whatsapp', async (req, res) => {
   try {
     const { event, data } = req.body;
@@ -218,7 +210,6 @@ app.post('/webhook/whatsapp', async (req, res) => {
       let ticket = tickets && tickets.length > 0 ? tickets[0] : null;
 
       if (!ticket || ticket.status === 'closed') {
-        // Se a mensagem partiu de você (celular), não cria ticket automático nem manda boas-vindas
         if (fromMe) {
           return res.status(200).json({ status: 'ignored_outbound_init' });
         }
@@ -243,7 +234,6 @@ app.post('/webhook/whatsapp', async (req, res) => {
       }
 
       if (!ticket.department) {
-        // Se a mensagem partiu de você com ticket sem setor, não processa o robô
         if (fromMe) return res.status(200).json({ status: 'ignored_outbound' });
 
         let escolhido = text === '1' ? 'suporte' : text === '2' ? 'financeiro' : text === '3' ? 'comercial' : null;
@@ -269,7 +259,6 @@ app.post('/webhook/whatsapp', async (req, res) => {
   }
 });
 
-// Rotas padrão de tickets
 app.get('/api/tickets', async (req, res) => {
   try {
     let query = supabase.from('tickets')
@@ -285,7 +274,6 @@ app.get('/api/tickets', async (req, res) => {
   }
 });
 
-// --- ROTA DE HISTÓRICO DE TICKETS FECHADOS ---
 app.get('/api/tickets/history', async (req, res) => {
   try {
     const { data: tickets, error: ticketError } = await supabase
@@ -345,7 +333,36 @@ app.post('/api/messages/send', async (req, res) => {
   }
 });
 
-// --- ROTA PARA TRANSFERIR O ATENDIMENTO ---
+app.post('/api/tickets/:id/assign', async (req, res) => {
+  try {
+    const ticketId = req.params.id;
+    const { agentId, agentName } = req.body;
+
+    const { error } = await supabase
+      .from('tickets')
+      .update({ 
+        assigned_to: agentId, 
+        last_agent_name: agentName,
+        updated_at: new Date()
+      })
+      .eq('id', ticketId);
+
+    if (error) throw error;
+
+    await supabase.from('messages').insert([{
+      ticket_id: ticketId,
+      sender_type: 'system',
+      sender_name: 'Sistema',
+      content: `Atendimento assumido por ${agentName}.`
+    }]);
+
+    res.json({ success: true, message: 'Atendimento atribuído com sucesso' });
+  } catch (error) {
+    console.error('Erro ao atribuir atendimento:', error);
+    res.status(500).json({ error: 'Erro ao atribuir atendimento' });
+  }
+});
+
 app.post('/api/tickets/:id/transfer', async (req, res) => {
   try {
     const ticketId = req.params.id;
@@ -376,7 +393,6 @@ app.post('/api/tickets/:id/transfer', async (req, res) => {
   }
 });
 
-// Rota para encerrar o ticket
 app.post('/api/tickets/:ticketId/close', async (req, res) => {
   try {
     const { ticketId } = req.params;
