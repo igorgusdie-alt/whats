@@ -222,7 +222,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       let { data: tickets } = await supabase.from('tickets').select('id, status, department').eq('contact_id', contact.id).order('created_at', { ascending: false }).limit(1);
       let ticket = tickets && tickets.length > 0 ? tickets[0] : null;
 
-      // Se não houver ticket ou se o último estiver fechado ('closed'), cria um novo ticket pendente com as datas exigidas pelo banco
+      // Se não houver ticket ou se o último estiver fechado ('closed'), cria um novo ticket pendente
       if (!ticket || ticket.status === 'closed') {
         const now = new Date();
         const { data: newT, error: errNewT } = await supabase.from('tickets').insert([{ 
@@ -273,11 +273,11 @@ app.post('/webhook/whatsapp', async (req, res) => {
   }
 });
 
-// Rotas padrão de tickets (traz apenas os abertos/pendentes para a listagem lateral)
+// Rotas padrão de tickets (traz os abertos/pendentes para a listagem lateral)
 app.get('/api/tickets', async (req, res) => {
   try {
     let query = supabase.from('tickets')
-      .select(`id, status, department, assigned_to, created_at, updated_at, contacts(id, name, phone_number, profile_pic_url)`)
+      .select(`id, status, department, assigned_to, last_agent_name, created_at, updated_at, contacts(id, name, phone_number, profile_pic_url), messages(sender_name, created_at)`)
       .in('status', ['open', 'pending'])
       .order('updated_at', { ascending: false });
 
@@ -293,7 +293,7 @@ app.get('/api/tickets', async (req, res) => {
 app.get('/api/tickets/history', async (req, res) => {
   try {
     let query = supabase.from('tickets')
-      .select(`id, status, department, assigned_to, created_at, closed_at, updated_at, contacts(id, name, phone_number, profile_pic_url), messages(id, sender_type, content, created_at)`)
+      .select(`id, status, department, assigned_to, last_agent_name, created_at, closed_at, updated_at, contacts(id, name, phone_number, profile_pic_url), messages(id, sender_type, content, created_at)`)
       .eq('status', 'closed')
       .order('updated_at', { ascending: false });
 
@@ -314,7 +314,6 @@ app.post('/api/messages/send', async (req, res) => {
   try {
     const { ticketId, phone, message, agentName } = req.body;
     
-    // LOGS DE DEBUG
     console.log("DEBUG [api/messages/send] URL:", `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`);
     console.log("DEBUG [api/messages/send] KEY carregada:", EVOLUTION_API_KEY ? EVOLUTION_API_KEY.substring(0, 8) + '...' : 'VAZIA');
 
@@ -323,7 +322,13 @@ app.post('/api/messages/send', async (req, res) => {
     }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
 
     await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: agentName || 'Atendente', content: message }]);
-    await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticketId);
+    
+    // Atualiza o ticket informando também o último atendente que falou
+    await supabase.from('tickets').update({ 
+      updated_at: new Date(), 
+      last_message_at: new Date(),
+      last_agent_name: agentName || 'Atendente'
+    }).eq('id', ticketId);
     
     res.status(200).json({ success: true });
   } catch (error) {
@@ -332,7 +337,40 @@ app.post('/api/messages/send', async (req, res) => {
   }
 });
 
-// Rota para encerrar o ticket (Fechamento universal por qualquer atendente/admin)
+// --- ROTA PARA TRANSFERIR O ATENDIMENTO ---
+app.post('/api/tickets/:id/transfer', async (req, res) => {
+  try {
+    const ticketId = req.params.id;
+    const { newAgentId, newAgentName, transferrerName } = req.body;
+
+    // Atualiza o responsável no banco de dados
+    const { error } = await supabase
+      .from('tickets')
+      .update({ 
+        assigned_to: newAgentId, 
+        last_agent_name: newAgentName,
+        updated_at: new Date()
+      })
+      .eq('id', ticketId);
+
+    if (error) throw error;
+
+    // Opcional: Adiciona uma mensagem de sistema no chat avisando sobre a transferência
+    await supabase.from('messages').insert([{
+      ticket_id: ticketId,
+      sender_type: 'system',
+      sender_name: 'Sistema',
+      content: `Atendimento transferido de ${transferrerName || 'um atendente'} para ${newAgentName}.`
+    }]);
+
+    res.json({ success: true, message: 'Atendimento transferido com sucesso' });
+  } catch (error) {
+    console.error('Erro ao transferir atendimento:', error);
+    res.status(500).json({ error: 'Erro ao transferir atendimento' });
+  }
+});
+
+// Rota para encerrar o ticket
 app.post('/api/tickets/:ticketId/close', async (req, res) => {
   try {
     const { ticketId } = req.params;
