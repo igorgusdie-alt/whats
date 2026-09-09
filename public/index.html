@@ -1,423 +1,739 @@
-const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
-const cors = require('cors');
-const axios = require('axios');
-require('dotenv').config();
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Net - Painel de Atendimento</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4gKgSUNDX1BST0ZJTEUAAQEAAAKQbGNtcwIQAABtbnRyUkdCIFhZWiAH3gAEABkACwAsACthY3NwTVNGVAAAAABkZXN0UGFlci5mYnVjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABtY3JzAQAAAWgAAAA0d3RwdAAAA8gAAAAUY3BydAAAABQAAAAsdGV4dAAAAABDb3B5cmlnaHQgQ2op..." />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 h-screen flex flex-col overflow-hidden">
 
-const app = express();
-app.use(express.json({ limit: '10mb' })); 
-app.use(cors());
+    <!-- TELA DE LOGIN -->
+    <div id="login-screen" class="flex items-center justify-center h-full bg-slate-950 absolute inset-0 z-50">
+        <div class="bg-slate-900 p-8 rounded-xl shadow-2xl border border-slate-800 w-full max-w-md">
+            <div class="text-center mb-6 flex flex-col items-center">
+                <img id="login-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.style.display='none'; document.getElementById('login-logo-fallback').classList.remove('hidden');">
+                <div id="login-logo-fallback" class="hidden h-24 w-24 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-2xl mb-4">WN</div>
+                <h1 class="text-2xl font-bold tracking-wide">Web Net Atendimento</h1>
+                <p class="text-xs text-slate-400 mt-1">Faça login para acessar o painel</p>
+            </div>
+            <form id="login-form" onsubmit="fazerLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">E-mail</label>
+                    <input type="email" id="login-email" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
+                    <input type="password" id="login-password" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div id="login-error" class="text-red-400 text-xs hidden text-center"></div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-lg transition text-sm shadow-lg shadow-blue-600/20">Entrar no Sistema</button>
+            </form>
+        </div>
+    </div>
 
-// Servir arquivos estáticos da pasta public
-app.use(express.static('public'));
+    <!-- PAINEL PRINCIPAL -->
+    <div id="app-screen" class="hidden flex h-full w-full overflow-hidden">
+        
+        <!-- SIDEBAR DE NAVEGAÇÃO -->
+        <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
+            <div>
+                <div class="p-5 border-b border-slate-800 flex items-center justify-center">
+                    <img id="sidebar-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.style.display='none'; document.getElementById('sidebar-logo-fallback').classList.remove('hidden');">
+                    <div id="sidebar-logo-fallback" class="hidden text-blue-400 font-bold text-lg tracking-wider">WEB NET</div>
+                </div>
+                <nav class="p-3 space-y-1">
+                    <button onclick="mudarAba('atendimento')" id="nav-atendimento" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition">
+                        <i class="fa-solid fa-headset w-5"></i> Atendimento
+                    </button>
+                    <button onclick="mudarAba('historico')" id="nav-historico" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                        <i class="fa-solid fa-clock-rotate-left w-5"></i> Histórico
+                    </button>
+                    <button onclick="mudarAba('gerenciamento')" id="nav-gerenciamento" class="hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                        <i class="fa-solid fa-users-gear w-5"></i> Gerenciamento
+                    </button>
+                </nav>
+            </div>
+            
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50">
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <p id="user-display-name" class="text-xs font-bold text-slate-200">Atendente</p>
+                        <p id="user-display-role" class="text-[10px] text-blue-400 uppercase tracking-wider font-semibold">Agente</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full mt-2 flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-600/20 hover:text-red-400 text-slate-300 text-xs py-1.5 rounded-lg transition border border-slate-700">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sair do Sistema
+                </button>
+            </div>
+        </aside>
 
-const supabaseUrl = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/\/$/, '') : '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+        <!-- CONTEÚDO DA ABA ATENDIMENTO -->
+        <main id="tab-atendimento" class="flex flex-1 h-full overflow-hidden">
+            <!-- Lista de Tickets -->
+            <section class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                    <h2 class="font-bold text-sm text-slate-200">Conversas</h2>
+                    <button onclick="carregarTickets()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-rotate"></i></button>
+                </div>
+                <div id="tickets-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60"></div>
+            </section>
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL; 
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY; 
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE; 
+            <!-- Chat Ativo -->
+            <section class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
+                <div id="chat-header" class="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center hidden">
+                    <div class="flex items-center gap-3">
+                        <img id="chat-contact-pic" src="" class="w-9 h-9 rounded-full object-cover bg-slate-800" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\'><path d=\'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\'></path><circle cx=\'12\' cy=\'7\' r=\'4\'></circle></svg>'">
+                        <div>
+                            <h3 id="chat-contact-name" class="font-bold text-sm text-slate-200">Selecione uma conversa</h3>
+                            <p id="chat-contact-phone" class="text-xs text-slate-400"></p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="abrirModalTransferir()" class="bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white text-xs px-3 py-1.5 rounded-lg transition font-medium border border-amber-500/30">
+                            <i class="fa-solid fa-share mr-1"></i> Transferir
+                        </button>
+                        <button onclick="encerrarAtendimento()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs px-3 py-1.5 rounded-lg transition font-medium border border-red-500/30">
+                            <i class="fa-solid fa-circle-check mr-1"></i> Encerrar
+                        </button>
+                    </div>
+                </div>
 
-async function fetchProfilePicture(phone) {
-  try {
-    const response = await axios.post(
-      `${EVOLUTION_API_URL}/chat/fetchProfilePictureUrl/${EVOLUTION_INSTANCE}`,
-      { number: phone },
-      { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } }
-    );
-    return response.data?.profilePictureUrl || response.data?.profilePicUrl || null;
-  } catch (error) {
-    return null;
-  }
-}
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                    <div class="m-auto text-center text-slate-500 text-sm">
+                        <i class="fa-brands fa-whatsapp text-4xl mb-2 opacity-40"></i>
+                        <p>Selecione um ticket ao lado para iniciar o atendimento</p>
+                    </div>
+                </div>
 
-async function enviarMensagemWhatsApp(phone, text) {
-  try {
-    await axios.post(
-      `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
-      { number: phone, text: text },
-      { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Erro ao enviar mensagem automática:', error?.response?.data || error.message);
-  }
-}
+                <form id="chat-input-form" onsubmit="enviarMensagem(event)" class="p-4 bg-slate-900 border-t border-slate-800 flex gap-2 hidden">
+                    <input type="text" id="message-input" placeholder="Digite sua resposta..." autocomplete="off" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-100">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-5 rounded-lg transition flex items-center justify-center shadow-lg shadow-blue-600/20">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </section>
+        </main>
 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
-});
+        <!-- CONTEÚDO DA ABA HISTÓRICO -->
+        <main id="tab-historico" class="hidden flex-1 h-full overflow-hidden">
+            <!-- Lista de Tickets Fechados -->
+            <section class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                    <h2 class="font-bold text-sm text-slate-200">Histórico de Conversas</h2>
+                    <button onclick="carregarHistorico()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-rotate"></i></button>
+                </div>
+                <div id="history-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60"></div>
+            </section>
 
-// --- ROTA DE CONFIGURAÇÕES GLOBAIS (LOGO, ETC) ---
-app.get('/api/settings', async (req, res) => {
-  try {
-    const { data, error } = await supabase.from('settings').select('*');
-    if (error) throw error;
-    const settingsMap = {};
-    if (data) data.forEach(s => settingsMap[s.key] = s.value);
-    res.json(settingsMap);
-  } catch (error) {
-    res.json({});
-  }
-});
+            <!-- Visualização do Histórico Selecionado -->
+            <section class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
+                <div id="history-header" class="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3 hidden">
+                    <img id="history-contact-pic" src="" class="w-9 h-9 rounded-full object-cover bg-slate-800" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\'><path d=\'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\'></path><circle cx=\'12\' cy=\'7\' r=\'4\'></circle></svg>'">
+                    <div>
+                        <h3 id="history-contact-name" class="font-bold text-sm text-slate-200">Selecione um atendimento encerrado</h3>
+                        <p id="history-contact-phone" class="text-xs text-slate-400"></p>
+                    </div>
+                </div>
 
-app.post('/api/settings', async (req, res) => {
-  try {
-    const { key, value } = req.body;
-    const { error } = await supabase
-      .from('settings')
-      .upsert({ key, value }, { onConflict: 'key' });
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+                <div id="history-messages" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                    <div class="m-auto text-center text-slate-500 text-sm">
+                        <i class="fa-solid fa-clock-rotate-left text-4xl mb-2 opacity-40"></i>
+                        <p>Selecione um atendimento no histórico para visualizar as mensagens</p>
+                    </div>
+                </div>
+            </section>
+        </main>
 
-// --- ROTA DE LOGIN COM RETORNO DE HIERARQUIA (ROLE) ---
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'E-mail e senha obrigatórios' });
+        <!-- CONTEÚDO DA ABA GERENCIAMENTO (ADMIN) -->
+        <main id="tab-gerenciamento" class="hidden flex-1 h-full overflow-y-auto p-6 bg-slate-950">
+            <div class="max-w-4xl mx-auto space-y-6">
+                <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
+                    <h2 class="text-lg font-bold text-slate-100 mb-1">Personalização da Logo</h2>
+                    <p class="text-xs text-slate-400 mb-4">Envie um arquivo PNG ou JPG para atualizar a logo do sistema instantaneamente[cite: 4].</p>
+                    <div class="flex items-center gap-4">
+                        <input type="file" id="input-logo-file" accept="image/png, image/jpeg" class="text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 file:cursor-pointer">
+                        <button onclick="salvarNovaLogo()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium px-4 py-2 rounded-lg transition shadow-lg shadow-emerald-600/20">Aplicar Nova Logo</button>
+                    </div>
+                </div>
 
-    const { data: users, error } = await supabase.from('users').select('*').eq('email', email.trim());
-    if (error || !users || users.length === 0) return res.status(401).json({ error: 'Credenciais inválidas' });
+                <div class="flex justify-between items-center bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-100">Gerenciamento de Atendentes</h2>
+                        <p class="text-xs text-slate-400">Cadastre novos atendentes, altere senhas e defina níveis de acesso hierárquico.</p>
+                    </div>
+                    <button onclick="abrirModalAtendente()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-4 py-2.5 rounded-lg transition flex items-center gap-2 shadow-lg shadow-blue-600/20">
+                        <i class="fa-solid fa-user-plus"></i> Novo Atendente
+                    </button>
+                </div>
 
-    const user = users[0];
-    const storedPassword = user.password_hash || user.password;
-    if (storedPassword !== password) return res.status(401).json({ error: 'Credenciais inválidas' });
+                <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-lg">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                                <th class="p-4">Nome</th>
+                                <th class="p-4">E-mail</th>
+                                <th class="p-4">Nível (Role)</th>
+                                <th class="p-4">Setores</th>
+                                <th class="p-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agents-table-body" class="divide-y divide-slate-800"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
 
-    const { data: deptData } = await supabase.from('agent_departments').select('department').eq('user_id', user.id);
-    const departments = deptData ? deptData.map(d => d.department) : [];
+    </div>
 
-    res.status(200).json({
-      success: true,
-      agent: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        departments: departments,
-        role: user.role || 'agent'
-      }
-    });
-  } catch (error) {
-    res.status(401).json({ error: 'Credenciais inválidas' });
-  }
-});
+    <!-- MODAL DE CADASTRO/EDIÇÃO DE ATENDENTE -->
+    <div id="modal-atendente" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <h3 id="modal-title" class="text-lg font-bold mb-4 text-slate-100">Cadastrar Novo Atendente</h3>
+            <form id="form-atendente" onsubmit="salvarAtendente(event)" class="space-y-4">
+                <input type="hidden" id="edit-agent-id">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nome Completo</label>
+                    <input type="text" id="agent-name" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">E-mail Profissional</label>
+                    <input type="email" id="agent-email" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
+                    <input type="password" id="agent-password" placeholder="Mínimo de 6 caracteres" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nível Hierárquico (Cargo)</label>
+                    <select id="agent-role" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+                        <option value="agent">Atendente Comum</option>
+                        <option value="admin">Administrador (Acesso Total)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Setores Permitidos</label>
+                    <div class="grid grid-cols-3 gap-2 mt-1">
+                        <label class="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded border border-slate-700 cursor-pointer">
+                            <input type="checkbox" name="agent-dept" value="suporte"> Suporte
+                        </label>
+                        <label class="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded border border-slate-700 cursor-pointer">
+                            <input type="checkbox" name="agent-dept" value="financeiro"> Financeiro
+                        </label>
+                        <label class="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded border border-slate-700 cursor-pointer">
+                            <input type="checkbox" name="agent-dept" value="comercial"> Comercial
+                        </label>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="fecharModalAtendente()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg transition">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg transition font-medium">Salvar Atendente</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-// --- ROTAS ADMINISTRATIVAS DE GERENCIAMENTO DE ATENDENTES ---
-app.get('/api/admin/agents', async (req, res) => {
-  try {
-    const { data: users, error } = await supabase.from('users').select('id, name, email, role, is_active, created_at');
-    if (error) throw error;
+    <!-- MODAL DE TRANSFERIR ATENDIMENTO -->
+    <div id="modal-transferir" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-sm p-6 shadow-2xl">
+            <h3 class="text-lg font-bold mb-2 text-slate-100">Transferir Atendimento</h3>
+            <p class="text-xs text-slate-400 mb-4">Selecione o atendente que irá assumir esta conversa:</p>
+            <div class="space-y-3">
+                <select id="select-novo-atendente" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-slate-200"></select>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="fecharModalTransferir()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg transition">Cancelar</button>
+                    <button type="button" onclick="confirmarTransferencia()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded-lg transition font-medium">Transferir</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    const { data: depts } = await supabase.from('agent_departments').select('user_id, department');
+    <!-- SCRIPT DA INTERFACE -->
+    <script>
+        let usuarioLogado = null;
+        let ticketAtualId = null;
+        let ticketAtualTelefone = null;
+        let intervaloMensagens = null;
+        let historicoTicketsData = [];
+        let listaAtendentesSistema = [];
 
-    const formatted = users.map(u => ({
-      ...u,
-      departments: depts ? depts.filter(d => d.user_id === u.id).map(d => d.department) : []
-    }));
+        window.addEventListener('DOMContentLoaded', () => {
+            carregarLogoSalva();
+            const salvo = localStorage.getItem('webnet_agent');
+            if (salvo) {
+                usuarioLogado = JSON.parse(salvo);
+                entrarNoPainel();
+            }
+        });
 
-    res.json(formatted);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/admin/agents', async (req, res) => {
-  try {
-    const { name, email, password, role, departments } = req.body;
-    if (!name || !email || !password) return res.status(400).json({ error: 'Preencha os campos obrigatórios' });
-
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert([{ name, email, password_hash: password, role: role || 'agent', is_active: true }])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    if (departments && Array.isArray(departments) && departments.length > 0) {
-      const depInserts = departments.map(d => ({ user_id: newUser.id, department: d }));
-      await supabase.from('agent_departments').insert(depInserts);
-    }
-
-    res.status(200).json({ success: true, user: newUser });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/api/admin/agents/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, email, password, role, departments } = req.body;
-
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (password) updateData.password_hash = password;
-    if (role) updateData.role = role;
-
-    if (Object.keys(updateData).length > 0) {
-      const { error } = await supabase.from('users').update(updateData).eq('id', id);
-      if (error) throw error;
-    }
-
-    if (departments && Array.isArray(departments)) {
-      await supabase.from('agent_departments').delete().eq('user_id', id);
-      if (departments.length > 0) {
-        const depInserts = departments.map(d => ({ user_id: id, department: d }));
-        await supabase.from('agent_departments').insert(depInserts);
-      }
-    }
-
-    res.status(200).json({ success: true, message: 'Atendente atualizado com sucesso!' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/api/admin/agents/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await supabase.from('agent_departments').delete().eq('user_id', id);
-    const { error } = await supabase.from('users').delete().eq('id', id);
-    if (error) throw error;
-    res.status(200).json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// --- WEBHOOK WHATSAPP ---
-app.post('/webhook/whatsapp', async (req, res) => {
-  try {
-    const { event, data } = req.body;
-
-    if (event === 'messages.upsert') {
-      const message = data;
-      const remoteJid = message?.key?.remoteJid;
-      const fromMe = message?.key?.fromMe;
-      const text = (message?.message?.conversation || message?.message?.extendedTextMessage?.text || '').trim();
-      const pushName = message?.pushName || 'Cliente';
-
-      if (!remoteJid || remoteJid.endsWith('@g.us')) return res.status(200).send('Ignorado');
-      const cleanPhone = remoteJid.replace('@s.whatsapp.net', '');
-
-      let { data: contacts } = await supabase.from('contacts').select('id, profile_pic_url').eq('phone_number', cleanPhone);
-      let contact = contacts && contacts.length > 0 ? contacts[0] : null;
-
-      if (!contact) {
-        const profilePicUrl = await fetchProfilePicture(cleanPhone);
-        const { data: newC } = await supabase.from('contacts').insert([{ name: pushName, phone_number: cleanPhone, profile_pic_url: profilePicUrl }]).select('id, profile_pic_url').single();
-        contact = newC;
-      }
-
-      let { data: tickets } = await supabase.from('tickets').select('id, status, department').eq('contact_id', contact.id).order('created_at', { ascending: false }).limit(1);
-      let ticket = tickets && tickets.length > 0 ? tickets[0] : null;
-
-      if (!ticket || ticket.status === 'closed') {
-        if (fromMe) {
-          return res.status(200).json({ status: 'ignored_outbound_init' });
+        function carregarLogoSalva() {
+            const logoSalva = localStorage.getItem('webnet_custom_logo');
+            if (logoSalva) {
+                document.getElementById('login-logo-img').src = logoSalva;
+                document.getElementById('sidebar-logo-img').src = logoSalva;
+                document.getElementById('login-logo-img').style.display = 'block';
+                document.getElementById('sidebar-logo-img').style.display = 'block';
+                document.getElementById('login-logo-fallback').classList.add('hidden');
+                document.getElementById('sidebar-logo-fallback').classList.add('hidden');
+            }
         }
 
-        const now = new Date();
-        const { data: newT, error: errNewT } = await supabase.from('tickets').insert([{ 
-          contact_id: contact.id, 
-          status: 'pending', 
-          department: null,
-          created_at: now,
-          updated_at: now,
-          started_at: now,
-          last_message_at: now
-        }]).select('id, status, department').single();
-
-        if (errNewT) return res.status(500).json({ error: errNewT.message });
-        
-        ticket = newT;
-        
-        await enviarMensagemWhatsApp(cleanPhone, `Olá, *${pushName}*! Seja bem-vindo à Web Net! 💻✨\nEscolha o setor desejado:\n\n1️⃣ - Suporte Técnico\n2️⃣ - Financeiro\n3️⃣ - Comercial`);
-        return res.status(200).json({ status: 'welcome_sent' });
-      }
-
-      if (!ticket.department) {
-        if (fromMe) return res.status(200).json({ status: 'ignored_outbound' });
-
-        let escolhido = text === '1' ? 'suporte' : text === '2' ? 'financeiro' : text === '3' ? 'comercial' : null;
-        if (escolhido) {
-          await supabase.from('tickets').update({ department: escolhido, status: 'open', updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
-          await enviarMensagemWhatsApp(cleanPhone, `Você foi direcionado para o setor de **${escolhido.toUpperCase()}**. Um atendente já vai lhe responder!`);
-          return res.status(200).json({ status: 'dept_set' });
-        } else {
-          await enviarMensagemWhatsApp(cleanPhone, `Opção inválida. Digite:\n1️⃣ - Suporte Técnico\n2️⃣ - Financeiro\n3️⃣ - Comercial`);
-          return res.status(200).json({ status: 'invalid' });
+        function salvarNovaLogo() {
+            const fileInput = document.getElementById('input-logo-file');
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64Image = e.target.result;
+                    localStorage.setItem('webnet_custom_logo', base64Image);
+                    carregarLogoSalva();
+                    alert('Logo atualizada com sucesso!');
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                alert('Selecione um arquivo de imagem primeiro.');
+            }
         }
-      }
 
-      if (!fromMe) {
-        await supabase.from('messages').insert([{ ticket_id: ticket.id, sender_type: 'client', sender_name: pushName, content: text }]);
-        await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
-      }
-    }
-    res.status(200).json({ status: 'success' });
-  } catch (error) {
-    console.error('Erro crítico no webhook:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+        async function fazerLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.classList.add('hidden');
 
-// Rotas padrão de tickets
-app.get('/api/tickets', async (req, res) => {
-  try {
-    let query = supabase.from('tickets')
-      .select(`id, status, department, assigned_to, last_agent_name, created_at, updated_at, contacts(id, name, phone_number, profile_pic_url), messages(sender_name, created_at)`)
-      .in('status', ['open', 'pending'])
-      .order('updated_at', { ascending: false });
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Erro ao fazer login');
 
-    const { data, error } = await query;
-    if (error) throw error;
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+                usuarioLogado = data.agent;
+                localStorage.setItem('webnet_agent', JSON.stringify(usuarioLogado));
+                entrarNoPainel();
+            } catch (err) {
+                errorDiv.textContent = err.message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
 
-// --- ROTA DE HISTÓRICO DE TICKETS FECHADOS ---
-app.get('/api/tickets/history', async (req, res) => {
-  try {
-    const { data: tickets, error: ticketError } = await supabase
-      .from('tickets')
-      .select(`id, status, department, assigned_to, last_agent_name, created_at, closed_at, updated_at, contacts(id, name, phone_number, profile_pic_url)`)
-      .eq('status', 'closed')
-      .order('updated_at', { ascending: false });
+        function entrarNoPainel() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            document.getElementById('user-display-name').textContent = usuarioLogado.name;
+            document.getElementById('user-display-role').textContent = usuarioLogado.role === 'admin' ? 'Administrador' : 'Atendente';
 
-    if (ticketError) throw ticketError;
-    if (!tickets || tickets.length === 0) return res.json([]);
+            if (usuarioLogado.role === 'admin') {
+                document.getElementById('nav-gerenciamento').classList.remove('hidden');
+            }
 
-    const ticketsComMensagens = await Promise.all(tickets.map(async (t) => {
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('ticket_id', t.id)
-        .order('created_at', { ascending: true });
+            carregarAtendentesGeral();
+            carregarTickets();
+            setInterval(carregarTickets, 4000);
+        }
 
-      return {
-        ...t,
-        messages: msgs || []
-      };
-    }));
+        async function carregarAtendentesGeral() {
+            try {
+                const res = await fetch('/api/admin/agents');
+                if (res.ok) {
+                    listaAtendentesSistema = await res.json();
+                }
+            } catch (e) {
+                console.error('Erro ao carregar atendentes:', e);
+            }
+        }
 
-    res.json(ticketsComMensagens);
-  } catch (error) {
-    console.error('Erro ao carregar histórico:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+        function logout() {
+            localStorage.removeItem('webnet_agent');
+            location.reload();
+        }
 
-app.get('/api/tickets/:ticketId/messages', async (req, res) => {
-  const { data } = await supabase.from('messages').select('*').eq('ticket_id', req.params.ticketId).order('created_at', { ascending: true });
-  res.json(data || []);
-});
+        function mudarAba(aba) {
+            const btnAtendimento = document.getElementById('nav-atendimento');
+            const btnHistorico = document.getElementById('nav-historico');
+            const btnGerenciamento = document.getElementById('nav-gerenciamento');
+            const tabAtendimento = document.getElementById('tab-atendimento');
+            const tabHistorico = document.getElementById('tab-historico');
+            const tabGerenciamento = document.getElementById('tab-gerenciamento');
 
-app.post('/api/messages/send', async (req, res) => {
-  try {
-    const { ticketId, phone, message, agentName } = req.body;
+            btnAtendimento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition";
+            btnHistorico.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition";
+            if(btnGerenciamento) btnGerenciamento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition";
+            
+            tabAtendimento.classList.add('hidden');
+            tabHistorico.classList.add('hidden');
+            tabGerenciamento.classList.add('hidden');
 
-    await axios.post(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
-      number: phone, text: `*${agentName || 'Atendente'}:*\n${message}`
-    }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
+            if (aba === 'atendimento') {
+                btnAtendimento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
+                tabAtendimento.classList.remove('hidden');
+            } else if (aba === 'historico') {
+                btnHistorico.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
+                tabHistorico.classList.remove('hidden');
+                carregarHistorico();
+            } else if (aba === 'gerenciamento') {
+                if(btnGerenciamento) btnGerenciamento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
+                tabGerenciamento.classList.remove('hidden');
+                carregarAtendentesAdmin();
+            }
+        }
 
-    await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: agentName || 'Atendente', content: message }]);
-    
-    await supabase.from('tickets').update({ 
-      updated_at: new Date(), 
-      last_message_at: new Date(),
-      last_agent_name: agentName || 'Atendente'
-    }).eq('id', ticketId);
-    
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error('Erro detalhado ao enviar via painel:', error.response?.data || error.message);
-    res.status(500).json({ error: error.message });
-  }
-});
+        async function carregarTickets() {
+            try {
+                const res = await fetch(`/api/tickets?agentId=${usuarioLogado.id}`);
+                const tickets = await res.json();
+                const list = document.getElementById('tickets-list');
+                list.innerHTML = '';
 
-// --- ROTA PARA ATRIBUIR ATENDIMENTO PARA SI MESMO ---
-app.post('/api/tickets/:id/assign', async (req, res) => {
-  try {
-    const ticketId = req.params.id;
-    const { agentId, agentName } = req.body;
+                if (tickets.length === 0) {
+                    list.innerHTML = '<div class="p-6 text-center text-xs text-slate-500">Nenhum atendimento no momento</div>';
+                    return;
+                }
 
-    const { error } = await supabase
-      .from('tickets')
-      .update({ 
-        assigned_to: agentId, 
-        last_agent_name: agentName,
-        updated_at: new Date()
-      })
-      .eq('id', ticketId);
+                tickets.forEach(t => {
+                    const contact = t.contacts || { name: 'Cliente', phone_number: '' };
+                    let responsavelOuUltimo = t.last_agent_name || t.agent_name || 'Aguardando';
+                    if (t.messages && t.messages.length > 0) {
+                        const ultimaMsg = t.messages[t.messages.length - 1];
+                        if (ultimaMsg.sender_name) responsavelOuUltimo = ultimaMsg.sender_name;
+                    }
 
-    if (error) throw error;
+                    const div = document.createElement('div');
+                    div.className = `p-3.5 cursor-pointer hover:bg-slate-800/50 transition border-b border-slate-800/40 ${ticketAtualId === t.id ? 'bg-slate-800' : ''}`;
+                    div.onclick = () => selecionarTicket(t.id, contact.name, contact.phone_number, contact.profile_pic_url);
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-semibold text-xs text-slate-200 truncate">${contact.name}</span>
+                            <span class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-slate-800 text-blue-400 font-medium">${t.department || 'geral'}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] text-slate-400">
+                            <span class="truncate">${contact.phone_number}</span>
+                        </div>
+                        <div class="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 bg-slate-950/40 px-2 py-0.5 rounded border border-slate-800/60 w-fit">
+                            <i class="fa-solid fa-user-tag text-blue-400"></i> <span class="truncate max-w-[200px]">Atendimento: <b>${responsavelOuUltimo}</b></span>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            } catch (e) {
+                console.error('Erro ao carregar tickets:', e);
+            }
+        }
 
-    await supabase.from('messages').insert([{
-      ticket_id: ticketId,
-      sender_type: 'system',
-      sender_name: 'Sistema',
-      content: `Atendimento assumido por ${agentName}.`
-    }]);
+        async function selecionarTicket(id, name, phone, pic) {
+            ticketAtualId = id;
+            ticketAtualTelefone = phone;
+            document.getElementById('chat-header').classList.remove('hidden');
+            document.getElementById('chat-input-form').classList.remove('hidden');
+            document.getElementById('chat-contact-name').textContent = name;
+            document.getElementById('chat-contact-phone').textContent = phone;
+            document.getElementById('chat-contact-pic').src = pic || '';
 
-    res.json({ success: true, message: 'Atendimento atribuído com sucesso' });
-  } catch (error) {
-    console.error('Erro ao atribuir atendimento:', error);
-    res.status(500).json({ error: 'Erro ao atribuir atendimento' });
-  }
-});
+            await carregarMensagens(true);
+            if (intervaloMensagens) clearInterval(intervaloMensagens);
+            intervaloMensagens = setInterval(() => carregarMensagens(false), 2500);
+        }
 
-// --- ROTA PARA TRANSFERIR O ATENDIMENTO ---
-app.post('/api/tickets/:id/transfer', async (req, res) => {
-  try {
-    const ticketId = req.params.id;
-    const { newAgentId, newAgentName, transferrerName } = req.body;
+        async function carregarMensagens(forcarRolagem = false) {
+            if (!ticketAtualId) return;
+            try {
+                const res = await fetch(`/api/tickets/${ticketAtualId}/messages?agentId=${usuarioLogado.id}`);
+                const msgs = await res.json();
+                const container = document.getElementById('chat-messages');
+                const estaNoFim = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
 
-    const { error } = await supabase
-      .from('tickets')
-      .update({ 
-        assigned_to: newAgentId, 
-        last_agent_name: newAgentName,
-        updated_at: new Date()
-      })
-      .eq('id', ticketId);
+                container.innerHTML = '';
+                if (msgs.length === 0) {
+                    container.innerHTML = '<div class="m-auto text-center text-slate-500 text-xs">Nenhuma mensagem registrada nesta conversa.</div>';
+                    return;
+                }
 
-    if (error) throw error;
+                msgs.forEach(m => {
+                    const isAgent = m.sender_type === 'agent';
+                    const bubble = document.createElement('div');
+                    bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
+                    
+                    let conteudoHtml = `<p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>`;
+                    if (m.media_url || m.type === 'image') {
+                        const urlMidia = m.media_url || m.content;
+                        conteudoHtml += `<img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">`;
+                    }
 
-    await supabase.from('messages').insert([{
-      ticket_id: ticketId,
-      sender_type: 'system',
-      sender_name: 'Sistema',
-      content: `Atendimento transferido de ${transferrerName || 'um atendente'} para ${newAgentName}.`
-    }]);
+                    bubble.innerHTML = `<p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>${conteudoHtml}`;
+                    container.appendChild(bubble);
+                });
 
-    res.json({ success: true, message: 'Atendimento transferido com sucesso' });
-  } catch (error) {
-    console.error('Erro ao transferir atendimento:', error);
-    res.status(500).json({ error: 'Erro ao transferir atendimento' });
-  }
-});
+                if (forcarRolagem || estaNoFim) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (e) {
+                console.error('Erro ao carregar mensagens:', e);
+            }
+        }
 
-// Rota para encerrar o ticket
-app.post('/api/tickets/:ticketId/close', async (req, res) => {
-  try {
-    const { ticketId } = req.params;
-    const { error } = await supabase.from('tickets').update({ status: 'closed', updated_at: new Date(), closed_at: new Date() }).eq('id', ticketId);
-    if (error) throw error;
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+        async function enviarMensagem(event) {
+            event.preventDefault();
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            if (!message || !ticketAtualId) return;
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+            try {
+                const res = await fetch('/api/messages/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticketId: ticketAtualId, phone: ticketAtualTelefone, message, agentName: usuarioLogado.name, agentId: usuarioLogado.id })
+                });
+                if (!res.ok) throw new Error('Erro ao enviar mensagem');
+                input.value = '';
+                await carregarMensagens(true);
+                carregarTickets();
+            } catch (e) {
+                alert('Erro ao enviar mensagem: ' + e.message);
+            }
+        }
+
+        function abrirModalTransferir() {
+            if (!ticketAtualId) return;
+            const select = document.getElementById('select-novo-atendente');
+            select.innerHTML = '';
+            const outrosAtendentes = listaAtendentesSistema.filter(a => a.id !== usuarioLogado.id);
+
+            if (outrosAtendentes.length === 0) {
+                select.innerHTML = '<option value="">Nenhum outro atendente cadastrado</option>';
+            } else {
+                outrosAtendentes.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = `${a.name} (${a.email})`;
+                    select.appendChild(opt);
+                });
+            }
+            document.getElementById('modal-transferir').classList.remove('hidden');
+        }
+
+        function fecharModalTransferir() {
+            document.getElementById('modal-transferir').classList.add('hidden');
+        }
+
+        async function confirmarTransferencia() {
+            const novoAtendenteId = document.getElementById('select-novo-atendente').value;
+            if (!novoAtendenteId) return alert('Selecione um atendente válido.');
+
+            const atendenteObj = listaAtendentesSistema.find(a => a.id === novoAtendenteId);
+            const nomeNovoAtendente = atendenteObj ? atendenteObj.name : 'outro atendente';
+
+            try {
+                const res = await fetch(`/api/tickets/${ticketAtualId}/transfer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newAgentId: novoAtendenteId, newAgentName: nomeNovoAtendente, transferrerName: usuarioLogado.name })
+                });
+                if (!res.ok) throw new Error('Erro ao transferir');
+
+                alert(`Atendimento transferido para ${nomeNovoAtendente} com sucesso!`);
+                fecharModalTransferir();
+                ticketAtualId = null;
+                document.getElementById('chat-header').classList.add('hidden');
+                document.getElementById('chat-input-form').classList.add('hidden');
+                document.getElementById('chat-messages').innerHTML = '<div class="m-auto text-center text-slate-500 text-sm">Atendimento transferido.</div>';
+                if (intervaloMensagens) clearInterval(intervaloMensagens);
+                carregarTickets();
+            } catch (e) {
+                alert('Erro ao transferir: ' + e.message);
+            }
+        }
+
+        async function encerrarAtendimento() {
+            if (!confirm('Deseja realmente encerrar este atendimento?')) return;
+            try {
+                await fetch(`/api/tickets/${ticketAtualId}/close`, { method: 'POST' });
+                ticketAtualId = null;
+                document.getElementById('chat-header').classList.add('hidden');
+                document.getElementById('chat-input-form').classList.add('hidden');
+                document.getElementById('chat-messages').innerHTML = '<div class="m-auto text-center text-slate-500 text-sm">Atendimento encerrado com sucesso.</div>';
+                if (intervaloMensagens) clearInterval(intervaloMensagens);
+                carregarTickets();
+            } catch (e) {
+                alert('Erro ao encerrar');
+            }
+        }
+
+        // --- ABA HISTÓRICO ---
+        async function carregarHistorico() {
+            try {
+                const res = await fetch('/api/tickets/history');
+                historicoTicketsData = await res.json();
+                const list = document.getElementById('history-list');
+                list.innerHTML = '';
+
+                if (!historicoTicketsData || historicoTicketsData.length === 0) {
+                    list.innerHTML = '<div class="p-6 text-center text-xs text-slate-500">Nenhum atendimento no histórico</div>';
+                    return;
+                }
+
+                historicoTicketsData.forEach(t => {
+                    const contact = t.contacts || { name: 'Cliente', phone_number: '' };
+                    const dataFechamento = t.closed_at ? new Date(t.closed_at).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+                    const div = document.createElement('div');
+                    div.className = `p-3.5 cursor-pointer hover:bg-slate-800/50 transition border-b border-slate-800/40`;
+                    div.onclick = () => selecionarHistorico(t.id);
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-semibold text-xs text-slate-200 truncate">${contact.name}</span>
+                            <span class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400 font-medium">${t.department || 'geral'}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] text-slate-400">
+                            <span class="truncate">${contact.phone_number}</span>
+                            <span class="text-[10px] text-slate-500">${dataFechamento}</span>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            } catch (e) {
+                console.error('Erro ao carregar histórico:', e);
+            }
+        }
+
+        function selecionarHistorico(ticketId) {
+            const ticket = historicoTicketsData.find(t => t.id === ticketId);
+            if (!ticket) return;
+
+            const contact = ticket.contacts || { name: 'Cliente', phone_number: '' };
+            document.getElementById('history-header').classList.remove('hidden');
+            document.getElementById('history-contact-name').textContent = contact.name;
+            document.getElementById('history-contact-phone').textContent = contact.phone_number;
+            document.getElementById('history-contact-pic').src = contact.profile_pic_url || '';
+
+            const container = document.getElementById('history-messages');
+            container.innerHTML = '';
+
+            const msgs = ticket.messages || [];
+            if (msgs.length === 0) {
+                container.innerHTML = '<div class="m-auto text-center text-slate-500 text-xs">Nenhuma mensagem registrada neste atendimento.</div>';
+                return;
+            }
+
+            msgs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            msgs.forEach(m => {
+                const isAgent = m.sender_type === 'agent';
+                const bubble = document.createElement('div');
+                bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
+                
+                let conteudoHtml = `<p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>`;
+                if (m.media_url || m.type === 'image') {
+                    const urlMidia = m.media_url || m.content;
+                    conteudoHtml += `<img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">`;
+                }
+
+                bubble.innerHTML = `<p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>${conteudoHtml}`;
+                container.appendChild(bubble);
+            });
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function carregarAtendentesAdmin() {
+            try {
+                const res = await fetch('/api/admin/agents');
+                const agents = await res.json();
+                const tbody = document.getElementById('agents-table-body');
+                tbody.innerHTML = '';
+
+                agents.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/40 transition";
+                    tr.innerHTML = `
+                        <td class="p-4 font-medium text-slate-200">${a.name}</td>
+                        <td class="p-4 text-slate-400">${a.email}</td>
+                        <td class="p-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${a.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}">${a.role}</span></td>
+                        <td class="p-4 text-slate-300 text-xs">${a.departments.join(', ') || 'Nenhum'}</td>
+                        <td class="p-4 text-right space-x-2">
+                            <button onclick='editarAtendente(${JSON.stringify(a)})' class="text-slate-400 hover:text-blue-400 transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deletarAtendente('${a.id}')" class="text-slate-400 hover:text-red-400 transition"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Erro ao carregar atendentes:', e);
+            }
+        }
+
+        function abrirModalAtendente() {
+            document.getElementById('modal-title').textContent = 'Cadastrar Novo Atendente';
+            document.getElementById('edit-agent-id').value = '';
+            document.getElementById('form-atendente').reset();
+            document.getElementById('modal-atendente').classList.remove('hidden');
+        }
+
+        function fecharModalAtendente() {
+            document.getElementById('modal-atendente').classList.add('hidden');
+        }
+
+        function editarAtendente(agent) {
+            document.getElementById('modal-title').textContent = 'Editar Atendente';
+            document.getElementById('edit-agent-id').value = agent.id;
+            document.getElementById('agent-name').value = agent.name;
+            document.getElementById('agent-email').value = agent.email;
+            document.getElementById('agent-password').value = '';
+            document.getElementById('agent-role').value = agent.role;
+
+            const checkboxes = document.querySelectorAll('input[name="agent-dept"]');
+            checkboxes.forEach(cb => cb.checked = agent.departments.includes(cb.value));
+            document.getElementById('modal-atendente').classList.remove('hidden');
+        }
+
+        async function salvarAtendente(event) {
+            event.preventDefault();
+            const id = document.getElementById('edit-agent-id').value;
+            const name = document.getElementById('agent-name').value;
+            const emailVal = document.getElementById('agent-email').value;
+            const password = document.getElementById('agent-password').value;
+            const role = document.getElementById('agent-role').value;
+
+            const departments = [];
+            document.querySelectorAll('input[name="agent-dept"]:checked').forEach(cb => departments.push(cb.value));
+
+            const payload = { name, email: emailVal, role, departments };
+            if (password) payload.password = password;
+
+            try {
+                const url = id ? `/api/admin/agents/${id}` : '/api/admin/agents';
+                const method = id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+
+                fecharModalAtendente();
+                carregarAtendentesAdmin();
+                carregarAtendentesGeral();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function deletarAtendente(id) {
+            if (!confirm('Deseja realmente excluir este atendente?')) return;
+            try {
+                const res = await fetch(`/api/admin/agents/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Erro ao excluir');
+                carregarAtendentesAdmin();
+                carregarAtendentesGeral();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
