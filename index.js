@@ -292,15 +292,31 @@ app.get('/api/tickets', async (req, res) => {
 // --- ROTA DE HISTÓRICO DE TICKETS FECHADOS ---
 app.get('/api/tickets/history', async (req, res) => {
   try {
-    let query = supabase.from('tickets')
-      .select(`id, status, department, assigned_to, last_agent_name, created_at, closed_at, updated_at, contacts(id, name, phone_number, profile_pic_url), messages(id, sender_type, content, created_at)`)
+    const { data: tickets, error: ticketError } = await supabase
+      .from('tickets')
+      .select(`id, status, department, assigned_to, last_agent_name, created_at, closed_at, updated_at, contacts(id, name, phone_number, profile_pic_url)`)
       .eq('status', 'closed')
       .order('updated_at', { ascending: false });
 
-    const { data, error } = await query;
-    if (error) throw error;
-    res.json(data);
+    if (ticketError) throw ticketError;
+    if (!tickets || tickets.length === 0) return res.json([]);
+
+    const ticketsComMensagens = await Promise.all(tickets.map(async (t) => {
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('ticket_id', t.id)
+        .order('created_at', { ascending: true });
+
+      return {
+        ...t,
+        messages: msgs || []
+      };
+    }));
+
+    res.json(ticketsComMensagens);
   } catch (error) {
+    console.error('Erro ao carregar histórico:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -323,7 +339,6 @@ app.post('/api/messages/send', async (req, res) => {
 
     await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: agentName || 'Atendente', content: message }]);
     
-    // Atualiza o ticket informando também o último atendente que falou
     await supabase.from('tickets').update({ 
       updated_at: new Date(), 
       last_message_at: new Date(),
@@ -343,7 +358,6 @@ app.post('/api/tickets/:id/transfer', async (req, res) => {
     const ticketId = req.params.id;
     const { newAgentId, newAgentName, transferrerName } = req.body;
 
-    // Atualiza o responsável no banco de dados
     const { error } = await supabase
       .from('tickets')
       .update({ 
@@ -355,7 +369,6 @@ app.post('/api/tickets/:id/transfer', async (req, res) => {
 
     if (error) throw error;
 
-    // Opcional: Adiciona uma mensagem de sistema no chat avisando sobre a transferência
     await supabase.from('messages').insert([{
       ticket_id: ticketId,
       sender_type: 'system',
