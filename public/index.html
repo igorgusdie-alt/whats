@@ -2,477 +2,503 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Painel de Atendimento Web Net</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Net - Painel de Atendimento</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-100 h-screen flex flex-col">
+<body class="bg-slate-900 text-slate-100 h-screen flex flex-col overflow-hidden">
 
     <!-- TELA DE LOGIN -->
-    <div id="login-screen" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-lg w-96 flex flex-col items-center">
-            <!-- SUA LOGO -->
-            <img src="/sua-logo.png" alt="Logo Web Net" class="h-14 mb-3 object-contain" onerror="this.style.display='none'">
-            
-            <!-- MENSAGEM DE BOAS-VINDAS -->
-            <h2 class="text-xl font-bold text-gray-800 mb-1 text-center">Boas-vindas!</h2>
-            <p class="text-xs text-gray-500 mb-6 text-center">Acesse o painel de atendimento Web Net</p>
-
-            <form onsubmit="realizarLogin(event)" class="space-y-4 w-full">
+    <div id="login-screen" class="flex items-center justify-center h-full bg-slate-950 absolute inset-0 z-50">
+        <div class="bg-slate-900 p-8 rounded-xl shadow-2xl border border-slate-800 w-full max-w-md">
+            <div class="text-center mb-6">
+                <img id="login-logo" src="sua-logo.png" alt="Logo" class="mx-auto h-16 object-contain mb-3" onerror="this.src='https://via.placeholder.com/150?text=Web+Net'">
+                <h1 class="text-2xl font-bold tracking-wide">Web Net Atendimento</h1>
+                <p class="text-xs text-slate-400 mt-1">Faça login para acessar o painel</p>
+            </div>
+            <form id="login-form" onsubmit="fazerLogin(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">E-mail</label>
-                    <input type="email" id="login-email" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" placeholder="seu@email.com">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">E-mail</label>
+                    <input type="email" id="login-email" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">Senha</label>
-                    <input type="password" id="login-password" required class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" placeholder="••••••••">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
+                    <input type="password" id="login-password" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
                 </div>
-                <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded font-semibold hover:bg-emerald-700 transition">Entrar</button>
+                <div id="login-error" class="text-red-400 text-xs hidden text-center"></div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded-lg transition text-sm shadow-lg shadow-blue-600/20">Entrar no Sistema</button>
             </form>
         </div>
     </div>
 
-    <!-- PAINEL PRINCIPAL (Oculto até logar) -->
-    <div id="app-screen" class="flex flex-col h-screen hidden">
-        <header class="bg-emerald-600 text-white p-4 font-bold text-lg shadow-md flex justify-between items-center">
-            <span>Atendimento Web Net - MultiAtendimento</span>
-            <div class="flex items-center gap-3">
-                <button onclick="solicitarSenhaAdmin()" class="text-xs bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 rounded transition font-semibold flex items-center gap-1">
-                    👥 Gerenciar Atendentes
-                </button>
-                <span class="text-xs bg-emerald-700 px-3 py-1.5 rounded flex items-center gap-2">
-                    Logado como: <strong id="logged-agent-name" class="text-emerald-200">Usuário</strong>
-                </span>
-                <button onclick="fazerLogout()" class="text-xs bg-red-700 hover:bg-red-800 px-3 py-1.5 rounded transition font-semibold">
-                    Sair
+    <!-- PAINEL PRINCIPAL -->
+    <div id="app-screen" class="hidden flex h-full w-full overflow-hidden">
+        
+        <!-- SIDEBAR DE NAVEGAÇÃO -->
+        <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
+            <div>
+                <div class="p-4 border-b border-slate-800 flex items-center gap-3">
+                    <img id="app-logo" src="sua-logo.png" alt="Logo" class="h-9 object-contain" onerror="this.src='https://via.placeholder.com/120?text=Web+Net'">
+                    <span class="font-bold text-sm tracking-tight text-slate-200">Painel Web Net</span>
+                </div>
+                <nav class="p-3 space-y-1">
+                    <button onclick="mudarAba('atendimento')" id="nav-atendimento" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition">
+                        <i class="fa-solid fa-headset w-5"></i> Atendimento
+                    </button>
+                    <!-- Aba Gerenciamento (Visível apenas para Administradores) -->
+                    <button onclick="mudarAba('gerenciamento')" id="nav-gerenciamento" class="hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
+                        <i class="fa-solid fa-users-gear w-5"></i> Gerenciamento
+                    </button>
+                </nav>
+            </div>
+            
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50">
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <p id="user-display-name" class="text-xs font-bold text-slate-200">Atendente</p>
+                        <p id="user-display-role" class="text-[10px] text-blue-400 uppercase tracking-wider font-semibold">Agente</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full mt-2 flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-600/20 hover:text-red-400 text-slate-300 text-xs py-1.5 rounded-lg transition border border-slate-700">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sair do Sistema
                 </button>
             </div>
-        </header>
+        </aside>
 
-        <div class="flex flex-1 overflow-hidden">
-            <!-- Lista de Conversas / Tickets -->
-            <div class="w-1/3 bg-white border-r border-gray-200 flex flex-col">
-                <div class="p-3 bg-gray-50 border-b flex flex-col gap-2">
-                    <span class="font-semibold text-gray-700 text-sm">Conversas Recentes</span>
-                    <select id="filter-department" onchange="carregarTickets()" class="border rounded px-2 py-1 text-xs bg-white text-gray-700 focus:outline-none focus:border-emerald-500">
-                        <option value="">📁 Meus Setores Permitidos</option>
-                        <option value="suporte">🔧 Suporte Técnico</option>
-                        <option value="financeiro">💰 Financeiro</option>
-                        <option value="comercial">📈 Comercial</option>
-                    </select>
+        <!-- CONTEÚDO DA ABA ATENDIMENTO -->
+        <main id="tab-atendimento" class="flex flex-1 h-full overflow-hidden">
+            <!-- Lista de Tickets -->
+            <section class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                    <h2 class="font-bold text-sm text-slate-200">Conversas</h2>
+                    <button onclick="carregarTickets()" class="text-slate-400 hover:text-white text-xs"><i class="fa-solid fa-rotate"></i></button>
                 </div>
-                <div id="tickets-list" class="flex-1 overflow-y-auto divide-y divide-gray-100">
-                    <!-- Tickets dinâmicos -->
+                <div id="tickets-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60">
+                    <!-- Preenchido via JS -->
                 </div>
-            </div>
+            </section>
 
-            <!-- Área de Chat -->
-            <div class="w-2/3 bg-gray-50 flex flex-col justify-between">
-                <div id="chat-header" class="p-4 bg-white border-b flex justify-between items-center">
-                    <div class="flex flex-col">
-                        <span class="font-semibold text-gray-800 text-sm" id="chat-header-text">Selecione uma conversa ao lado para iniciar</span>
-                        <div id="department-changer-container" class="hidden flex items-center gap-2 mt-1">
-                            <span class="text-[11px] text-gray-500 font-semibold">Alterar Setor:</span>
-                            <select id="select-change-department" onchange="alterarSetorTicket(this.value)" class="border rounded px-2 py-0.5 text-xs bg-white text-gray-700 focus:outline-none focus:border-emerald-500">
-                                <option value="suporte">🔧 Suporte</option>
-                                <option value="financeiro">💰 Financeiro</option>
-                                <option value="comercial">📈 Comercial</option>
-                            </select>
+            <!-- Chat Ativo -->
+            <section class="flex-1 flex flex-col bg-slate-950">
+                <div id="chat-header" class="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center hidden">
+                    <div class="flex items-center gap-3">
+                        <img id="chat-contact-pic" src="" class="w-9 h-9 rounded-full object-cover bg-slate-800" onerror="this.src='https://via.placeholder.com/40?text=U'">
+                        <div>
+                            <h3 id="chat-contact-name" class="font-bold text-sm text-slate-200">Selecione uma conversa</h3>
+                            <p id="chat-contact-phone" class="text-xs text-slate-400"></p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button id="btn-assumir" onclick="assumirConversa()" class="hidden bg-blue-600 text-white text-xs px-3 py-1.5 rounded font-semibold hover:bg-blue-700 transition">
-                            🤝 Assumir Conversa
-                        </button>
-                        <button id="btn-transferir" onclick="abrirModalTransferir()" class="hidden bg-amber-600 text-white text-xs px-3 py-1.5 rounded font-semibold hover:bg-amber-700 transition">
-                            ↗️ Transferir Atendente
-                        </button>
-                        <button id="btn-encerrar" onclick="encerrarAtendimento()" class="hidden bg-red-600 text-white text-xs px-3 py-1.5 rounded font-semibold hover:bg-red-700 transition">
-                            🔒 Encerrar Atendimento
-                        </button>
+                    <button onclick="encerrarAtendimento()" class="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs px-3 py-1.5 rounded-lg transition font-medium border border-red-500/30">
+                        <i class="fa-solid fa-circle-check mr-1"></i> Encerrar Atendimento
+                    </button>
+                </div>
+
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col">
+                    <div class="m-auto text-center text-slate-500 text-sm">
+                        <i class="fa-brands fa-whatsapp text-4xl mb-2 opacity-40"></i>
+                        <p>Selecione um ticket ao lado para iniciar o atendimento</p>
                     </div>
                 </div>
 
-                <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
-                    <div class="text-gray-400 text-center my-auto">Nenhuma conversa selecionada</div>
+                <form id="chat-input-form" onsubmit="enviarMensagem(event)" class="p-4 bg-slate-900 border-t border-slate-800 flex gap-2 hidden">
+                    <input type="text" id="message-input" placeholder="Digite sua resposta..." autocomplete="off" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-100">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-5 rounded-lg transition flex items-center justify-center shadow-lg shadow-blue-600/20">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </section>
+        </main>
+
+        <!-- CONTEÚDO DA ABA GERENCIAMENTO (ADMIN) -->
+        <main id="tab-gerenciamento" class="hidden flex-1 h-full overflow-y-auto p-6 bg-slate-950">
+            <div class="max-w-4xl mx-auto space-y-6">
+                <div class="flex justify-between items-center bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-lg">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-100">Gerenciamento de Atendentes</h2>
+                        <p class="text-xs text-slate-400">Cadastre novos atendentes, altere senhas e defina níveis de acesso hierárquico.</p>
+                    </div>
+                    <button onclick="abrirModalAtendente()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-4 py-2.5 rounded-lg transition flex items-center gap-2 shadow-lg shadow-blue-600/20">
+                        <i class="fa-solid fa-user-plus"></i> Novo Atendente
+                    </button>
                 </div>
 
-                <div class="p-3 bg-white border-t flex gap-2">
-                    <input type="text" id="message-input" placeholder="Digite sua resposta..." class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:border-emerald-500" disabled onkeypress="if(event.key === 'Enter') enviarMensagem()">
-                    <button onclick="enviarMensagem()" id="send-btn" class="bg-emerald-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition" disabled>Enviar</button>
+                <!-- Tabela de Atendentes -->
+                <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-lg">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-800/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                                <th class="p-4">Nome</th>
+                                <th class="p-4">E-mail</th>
+                                <th class="p-4">Nível (Role)</th>
+                                <th class="p-4">Setores</th>
+                                <th class="p-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agents-table-body" class="divide-y divide-slate-800">
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </main>
+
+    </div>
+
+    <!-- MODAL DE CADASTRO/EDIÇÃO DE ATENDENTE -->
+    <div id="modal-atendente" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <h3 id="modal-title" class="text-lg font-bold mb-4 text-slate-100">Cadastrar Novo Atendente</h3>
+            <form id="form-atendente" onsubmit="salvarAtendente(event)" class="space-y-4">
+                <input type="hidden" id="edit-agent-id">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nome Completo</label>
+                    <input type="text" id="agent-name" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">E-mail Profissional</label>
+                    <input type="email" id="agent-email" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
+                    <input type="password" id="agent-password" placeholder="Mínimo de 6 caracteres" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Nível Hierárquico (Cargo)</label>
+                    <select id="agent-role" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+                        <option value="agent">Atendente Comum</option>
+                        <option value="admin">Administrador (Acesso Total)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Setores Permitidos</label>
+                    <div class="grid grid-cols-3 gap-2 mt-1">
+                        <label class="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded border border-slate-700 cursor-pointer">
+                            <input type="checkbox" name="agent-dept" value="suporte"> Suporte
+                        </label>
+                        <label class="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded border border-slate-700 cursor-pointer">
+                            <input type="checkbox" name="agent-dept" value="financeiro"> Financeiro
+                        </label>
+                        <label class="flex items-center gap-2 text-xs bg-slate-800 p-2 rounded border border-slate-700 cursor-pointer">
+                            <input type="checkbox" name="agent-dept" value="comercial"> Comercial
+                        </label>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="fecharModalAtendente()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg transition">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg transition font-medium">Salvar Atendente</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- MODAIS -->
-    <div id="modal-senha-admin" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-80 space-y-4">
-            <h3 class="font-bold text-gray-800 text-lg">Área Restrita</h3>
-            <p class="text-xs text-gray-500">Digite a senha administrativa:</p>
-            <input type="password" id="admin-master-password" placeholder="Senha" class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-emerald-500" onkeypress="if(event.key === 'Enter') validarSenhaAdmin()">
-            <div class="flex justify-end gap-2 pt-2">
-                <button onclick="fecharModalSenhaAdmin()" class="bg-gray-300 text-gray-700 text-xs px-4 py-2 rounded font-semibold">Cancelar</button>
-                <button onclick="validarSenhaAdmin()" class="bg-emerald-600 text-white text-xs px-4 py-2 rounded font-semibold">Confirmar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-transferir" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-80 space-y-4">
-            <h3 class="font-bold text-gray-800 text-lg">Transferir Atendente</h3>
-            <select id="select-novo-atendente" class="w-full border rounded px-3 py-2 text-sm bg-white text-gray-700 focus:outline-none focus:border-emerald-500"></select>
-            <div class="flex justify-end gap-2 pt-2">
-                <button onclick="fecharModalTransferir()" class="bg-gray-300 text-gray-700 text-xs px-4 py-2 rounded font-semibold">Cancelar</button>
-                <button onclick="confirmarTransferencia()" class="bg-amber-600 text-white text-xs px-4 py-2 rounded font-semibold">Transferir</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-gerenciar-atendentes" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-6 rounded-lg shadow-lg w-[600px] max-h-[85vh] flex flex-col space-y-4">
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-gray-800 text-lg">Gerenciar Atendentes</h3>
-                <button onclick="fecharModalGerenciarAtendentes()" class="text-gray-500 hover:text-gray-700 font-bold text-lg">✕</button>
-            </div>
-            <div class="flex-1 overflow-y-auto space-y-4 pr-1" id="lista-atendentes-container"></div>
-            <div class="flex justify-end pt-2 border-t">
-                <button onclick="fecharModalGerenciarAtendentes()" class="bg-gray-600 text-white text-xs px-5 py-2 rounded font-semibold">Fechar</button>
-            </div>
-        </div>
-    </div>
-
+    <!-- SCRIPT DA INTERFACE -->
     <script>
-        let currentTicketId = null;
-        let currentPhone = null;
-        let loggedAgentName = '';
-        let loggedAgentId = '';
-        let loggedAgentDepartments = [];
-        const SENHA_ADMIN_MESTRE = "webnet2026@admin";
+        let usuarioLogado = null;
+        let ticketAtualId = null;
+        let ticketAtualTelefone = null;
+        let intervaloMensagens = null;
 
-        // VERIFICAR SESSÃO AO CARREGAR A PÁGINA
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedAgent = localStorage.getItem('webnet_agent');
-            if (savedAgent) {
-                const agent = JSON.parse(savedAgent);
-                loggedAgentName = agent.name;
-                loggedAgentId = agent.id;
-                loggedAgentDepartments = agent.departments || [];
+        // Ao carregar a página, busca configurações globais (logo)
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/settings');
+                const settings = await res.json();
+                if (settings.logo_url) {
+                    document.getElementById('login-logo').src = settings.logo_url;
+                    document.getElementById('app-logo').src = settings.logo_url;
+                }
+            } catch (e) {
+                console.error('Erro ao carregar logo:', e);
+            }
 
-                document.getElementById('logged-agent-name').innerText = loggedAgentName;
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-screen').classList.remove('hidden');
-
-                carregarTickets();
-                setInterval(() => {
-                    carregarTickets();
-                    if (currentTicketId) carregarMensagens();
-                }, 3000);
+            const salvo = localStorage.getItem('webnet_agent');
+            if (salvo) {
+                usuarioLogado = JSON.parse(salvo);
+                entrarNoPainel();
             }
         });
 
-        async function realizarLogin(event) {
+        async function fazerLogin(event) {
             event.preventDefault();
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.classList.add('hidden');
 
             try {
-                const res = await fetch('/api/auth/login', {
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Erro ao fazer login');
 
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Erro ao fazer login');
-
-                loggedAgentName = data.agent.name;
-                loggedAgentId = data.agent.id;
-                loggedAgentDepartments = data.agent.departments || [];
-
-                // Salva no localStorage para manter a sessão
-                localStorage.setItem('webnet_agent', JSON.stringify(data.agent));
-
-                document.getElementById('logged-agent-name').innerText = loggedAgentName;
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-screen').classList.remove('hidden');
-
-                carregarTickets();
-                setInterval(() => {
-                    carregarTickets();
-                    if (currentTicketId) carregarMensagens();
-                }, 3000);
-
+                usuarioLogado = data.agent;
+                localStorage.setItem('webnet_agent', JSON.stringify(usuarioLogado));
+                entrarNoPainel();
             } catch (err) {
-                alert('Falha no login: ' + err.message);
+                errorDiv.textContent = err.message;
+                errorDiv.classList.remove('hidden');
             }
         }
 
-        function fazerLogout() {
+        function entrarNoPainel() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            document.getElementById('user-display-name').textContent = usuarioLogado.name;
+            document.getElementById('user-display-role').textContent = usuarioLogado.role === 'admin' ? 'Administrador' : 'Atendente';
+
+            if (usuarioLogado.role === 'admin') {
+                document.getElementById('nav-gerenciamento').classList.remove('hidden');
+            }
+
+            carregarTickets();
+            setInterval(carregarTickets, 5000);
+        }
+
+        function logout() {
             localStorage.removeItem('webnet_agent');
             location.reload();
         }
 
+        function mudarAba(aba) {
+            const btnAtendimento = document.getElementById('nav-atendimento');
+            const btnGerenciamento = document.getElementById('nav-gerenciamento');
+            const tabAtendimento = document.getElementById('tab-atendimento');
+            const tabGerenciamento = document.getElementById('tab-gerenciamento');
+
+            if (aba === 'atendimento') {
+                btnAtendimento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
+                if(btnGerenciamento) btnGerenciamento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition";
+                tabAtendimento.classList.remove('hidden');
+                tabGerenciamento.classList.add('hidden');
+            } else if (aba === 'gerenciamento') {
+                if(btnGerenciamento) btnGerenciamento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
+                btnAtendimento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition";
+                tabGerenciamento.classList.remove('hidden');
+                tabAtendimento.classList.add('hidden');
+                carregarAtendentesAdmin();
+            }
+        }
+
         async function carregarTickets() {
             try {
-                const selectedDept = document.getElementById('filter-department').value;
-                let url = `/api/tickets?agentId=${loggedAgentId}`;
-                if (selectedDept) url += `&department=${selectedDept}`;
-
-                const res = await fetch(url);
+                const res = await fetch(`/api/tickets?agentId=${usuarioLogado.id}`);
                 const tickets = await res.json();
-                const listEl = document.getElementById('tickets-list');
-                listEl.innerHTML = '';
+                const list = document.getElementById('tickets-list');
+                list.innerHTML = '';
 
-                if (!Array.isArray(tickets) || tickets.length === 0) {
-                    listEl.innerHTML = '<div class="p-4 text-gray-400 text-center text-sm">Nenhum ticket encontrado para seus setores.</div>';
+                if (tickets.length === 0) {
+                    list.innerHTML = '<div class="p-6 text-center text-xs text-slate-500">Nenhum atendimento no momento</div>';
                     return;
                 }
 
-                tickets.forEach(ticket => {
-                    const contato = ticket.contacts || { name: 'Desconhecido', phone_number: '', profile_pic_url: null };
-                    const avatarHtml = contato.profile_pic_url 
-                        ? `<img src="${contato.profile_pic_url}" class="w-10 h-10 rounded-full object-cover">`
-                        : `<div class="w-10 h-10 rounded-full bg-emerald-200 text-emerald-800 flex items-center font-bold justify-center">${(contato.name || 'C').charAt(0).toUpperCase()}</div>`;
-
-                    const deptBadge = ticket.department ? ticket.department.toUpperCase() : 'AGUARDANDO SETOR';
-                    const nomeAtendente = ticket.agents?.name || 'Não atribuído (Livre)';
-                    
+                tickets.forEach(t => {
+                    const contact = t.contacts || { name: 'Cliente', phone_number: '' };
                     const div = document.createElement('div');
-                    div.className = `p-3 cursor-pointer hover:bg-gray-50 transition border-l-4 flex items-center gap-3 ${currentTicketId === ticket.id ? 'bg-emerald-50 border-emerald-600' : 'border-transparent'}`;
-                    div.onclick = () => selecionarTicket(ticket.id, contato.name, contato.phone_number, ticket.department, ticket.assigned_to);
-                    
+                    div.className = `p-3.5 cursor-pointer hover:bg-slate-800/50 transition border-b border-slate-800/40 ${ticketAtualId === t.id ? 'bg-slate-800' : ''}`;
+                    div.onclick = () => selecionarTicket(t.id, contact.name, contact.phone_number, contact.profile_pic_url);
                     div.innerHTML = `
-                        ${avatarHtml}
-                        <div class="overflow-hidden flex-1">
-                            <div class="font-bold text-gray-800 truncate">${contato.name}</div>
-                            <div class="text-xs text-gray-500 truncate">${contato.phone_number}</div>
-                            <div class="text-[11px] text-gray-600 mt-0.5 truncate font-medium">👤 ${nomeAtendente}</div>
-                            <div class="text-[10px] mt-1 flex gap-1">
-                                <span class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded uppercase font-semibold">${deptBadge}</span>
-                                <span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded uppercase font-semibold">${ticket.status}</span>
-                            </div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-semibold text-xs text-slate-200 truncate">${contact.name}</span>
+                            <span class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-slate-800 text-blue-400 font-medium">${t.department || 'geral'}</span>
                         </div>
+                        <p class="text-[11px] text-slate-400 truncate">${contact.phone_number}</p>
                     `;
-                    listEl.appendChild(div);
+                    list.appendChild(div);
                 });
-            } catch (err) {
-                console.error('Erro ao carregar tickets:', err);
+            } catch (e) {
+                console.error('Erro ao carregar tickets:', e);
             }
         }
 
-        function solicitarSenhaAdmin() {
-            document.getElementById('admin-master-password').value = '';
-            document.getElementById('modal-senha-admin').classList.remove('hidden');
-        }
-        function fecharModalSenhaAdmin() { document.getElementById('modal-senha-admin').classList.add('hidden'); }
-        function validarSenhaAdmin() {
-            if (document.getElementById('admin-master-password').value === SENHA_ADMIN_MESTRE) {
-                fecharModalSenhaAdmin();
-                abrirModalGerenciarAtendentes();
-            } else {
-                alert('Senha administrativa incorreta!');
-            }
-        }
+        async function selecionarTicket(id, name, phone, pic) {
+            ticketAtualId = id;
+            ticketAtualTelefone = phone;
+            document.getElementById('chat-header').classList.remove('hidden');
+            document.getElementById('chat-input-form').classList.remove('hidden');
+            document.getElementById('chat-contact-name').textContent = name;
+            document.getElementById('chat-contact-phone').textContent = phone;
+            document.getElementById('chat-contact-pic').src = pic || 'https://via.placeholder.com/40?text=U';
 
-        async function abrirModalGerenciarAtendentes() {
-            document.getElementById('modal-gerenciar-atendentes').classList.remove('hidden');
-            await carregarListaAtendentesAdmin();
-        }
-        function fecharModalGerenciarAtendentes() { document.getElementById('modal-gerenciar-atendentes').classList.add('hidden'); }
-
-        async function carregarListaAtendentesAdmin() {
-            const container = document.getElementById('lista-atendentes-container');
-            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Carregando...</p>';
-            try {
-                const res = await fetch('/api/agents');
-                const agents = await res.json();
-                container.innerHTML = '';
-                agents.forEach(agent => {
-                    const depts = agent.departments || [];
-                    const card = document.createElement('div');
-                    card.className = 'border rounded-lg p-4 bg-gray-50 space-y-3';
-                    card.innerHTML = `
-                        <div class="flex justify-between items-start">
-                            <div><h4 class="font-bold text-gray-800 text-sm">${agent.name}</h4><p class="text-xs text-gray-500">${agent.email}</p></div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 border-t pt-2">
-                            <div>
-                                <span class="block text-[11px] font-semibold text-gray-600 mb-1">Setores Permitidos:</span>
-                                <div class="space-y-1 text-xs text-gray-700">
-                                    <label class="flex items-center gap-1.5"><input type="checkbox" value="suporte" data-agent="${agent.id}" class="agent-dept-${agent.id}" ${depts.includes('suporte') ? 'checked' : ''}> Suporte</label>
-                                    <label class="flex items-center gap-1.5"><input type="checkbox" value="financeiro" data-agent="${agent.id}" class="agent-dept-${agent.id}" ${depts.includes('financeiro') ? 'checked' : ''}> Financeiro</label>
-                                    <label class="flex items-center gap-1.5"><input type="checkbox" value="comercial" data-agent="${agent.id}" class="agent-dept-${agent.id}" ${depts.includes('comercial') ? 'checked' : ''}> Comercial</label>
-                                </div>
-                                <button onclick="salvarSetoresAtendente('${agent.id}')" class="mt-2 bg-emerald-600 text-white text-[11px] px-3 py-1 rounded font-semibold hover:bg-emerald-700 transition">Salvar Setores</button>
-                            </div>
-                            <div class="border-l pl-4 flex flex-col justify-between">
-                                <div><span class="block text-[11px] font-semibold text-gray-600 mb-1">Alterar Senha:</span><input type="password" id="new-pass-${agent.id}" placeholder="Nova senha" class="w-full border rounded px-2 py-1 text-xs mb-2 focus:outline-none focus:border-emerald-500"></div>
-                                <button onclick="alterarSenhaAtendente('${agent.id}')" class="bg-blue-600 text-white text-[11px] px-3 py-1 rounded font-semibold hover:bg-blue-700 transition">Atualizar Senha</button>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (err) { container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">Erro ao carregar atendentes.</p>'; }
-        }
-
-        async function salvarSetoresAtendente(agentId) {
-            const departments = Array.from(document.querySelectorAll(`.agent-dept-${agentId}:checked`)).map(cb => cb.value);
-            try {
-                await fetch(`/api/agents/${agentId}/departments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ departments }) });
-                alert('Setores atualizados com sucesso!');
-                if (agentId === loggedAgentId) loggedAgentDepartments = departments;
-            } catch (err) { alert('Erro ao atualizar setores.'); }
-        }
-
-        async function alterarSenhaAtendente(agentId) {
-            const password = document.getElementById(`new-pass-${agentId}`).value.trim();
-            if (!password) { alert('Digite a nova senha.'); return; }
-            try {
-                const res = await fetch(`/api/agents/${agentId}/password`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-                alert('Senha alterada com sucesso!');
-                document.getElementById(`new-pass-${agentId}`).value = '';
-            } catch (err) { alert('Erro: ' + err.message); }
-        }
-
-        function selecionarTicket(ticketId, nome, telefone, department, assignedTo) {
-            currentTicketId = ticketId;
-            currentPhone = telefone;
-            document.getElementById('chat-header-text').innerText = `Conversando com: ${nome} (${telefone})`;
-            document.getElementById('department-changer-container').classList.remove('hidden');
-            if (department) document.getElementById('select-change-department').value = department;
-
-            const btnAssumir = document.getElementById('btn-assumir');
-            const btnTransferir = document.getElementById('btn-transferir');
-            const btnEncerrar = document.getElementById('btn-encerrar');
-
-            if (!assignedTo || assignedTo !== loggedAgentId) {
-                btnAssumir.classList.remove('hidden'); btnTransferir.classList.add('hidden'); btnEncerrar.classList.add('hidden');
-            } else {
-                btnAssumir.classList.add('hidden'); btnTransferir.classList.remove('hidden'); btnEncerrar.classList.remove('hidden');
-            }
-            document.getElementById('message-input').disabled = false;
-            document.getElementById('send-btn').disabled = false;
-            carregarMensagens();
-        }
-
-        async function alterarSetorTicket(novoSetor) {
-            if (!currentTicketId || !currentPhone) return;
-            try {
-                await fetch(`/api/tickets/${currentTicketId}/department`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ department: novoSetor, phone: currentPhone }) });
-                alert(`Setor alterado para ${novoSetor.toUpperCase()}!`);
-                carregarTickets();
-            } catch (err) { alert('Erro ao alterar setor'); }
-        }
-
-        async function assumirConversa() {
-            if (!currentTicketId) return;
-            try {
-                await fetch(`/api/tickets/${currentTicketId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentId: loggedAgentId }) });
-                alert('Você assumiu esta conversa!');
-                document.getElementById('btn-assumir').classList.add('hidden');
-                document.getElementById('btn-transferir').classList.remove('hidden');
-                document.getElementById('btn-encerrar').classList.remove('hidden');
-                carregarTickets();
-            } catch (err) { alert('Não foi possível assumir.'); }
-        }
-
-        async function encerrarAtendimento() {
-            if (!currentTicketId || !confirm('Deseja realmente encerrar este atendimento?')) return;
-            try {
-                await fetch(`/api/tickets/${currentTicketId}/close`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentId: loggedAgentId }) });
-                alert('Atendimento encerrado!');
-                currentTicketId = null; currentPhone = null;
-                document.getElementById('chat-messages').innerHTML = '<div class="text-gray-400 text-center my-auto">Atendimento encerrado.</div>';
-                document.getElementById('chat-header-text').innerText = 'Selecione uma conversa ao lado';
-                document.getElementById('department-changer-container').classList.add('hidden');
-                document.getElementById('btn-assumir').classList.add('hidden');
-                document.getElementById('btn-transferir').classList.add('hidden');
-                document.getElementById('btn-encerrar').classList.add('hidden');
-                document.getElementById('message-input').disabled = true;
-                document.getElementById('send-btn').disabled = true;
-                carregarTickets();
-            } catch (err) { alert('Erro ao encerrar'); }
-        }
-
-        async function abrirModalTransferir() {
-            if (!currentTicketId) return;
-            const select = document.getElementById('select-novo-atendente');
-            select.innerHTML = '<option value="">Carregando...</option>';
-            document.getElementById('modal-transferir').classList.remove('hidden');
-            try {
-                const res = await fetch('/api/agents');
-                const agents = await res.json();
-                select.innerHTML = '';
-                agents.forEach(agent => {
-                    if (agent.id !== loggedAgentId) {
-                        const opt = document.createElement('option');
-                        opt.value = agent.id; opt.textContent = `${agent.name} (${agent.email})`;
-                        select.appendChild(opt);
-                    }
-                });
-            } catch (err) { select.innerHTML = '<option value="">Erro ao carregar</option>'; }
-        }
-
-        function fecharModalTransferir() { document.getElementById('modal-transferir').classList.add('hidden'); }
-
-        async function confirmarTransferencia() {
-            const novoAgentId = document.getElementById('select-novo-atendente').value;
-            if (!novoAgentId || !currentTicketId) return;
-            try {
-                await fetch(`/api/tickets/${currentTicketId}/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentId: novoAgentId }) });
-                alert('Conversa transferida com sucesso!');
-                fecharModalTransferir();
-                document.getElementById('btn-transferir').classList.add('hidden');
-                document.getElementById('btn-encerrar').classList.add('hidden');
-                carregarTickets();
-            } catch (err) { alert('Erro ao transferir.'); }
+            await carregarMensagens();
+            if (intervaloMensagens) clearInterval(intervaloMensagens);
+            intervaloMensagens = setInterval(carregarMensagens, 3000);
         }
 
         async function carregarMensagens() {
-            if (!currentTicketId) return;
+            if (!ticketAtualId) return;
             try {
-                const res = await fetch(`/api/tickets/${currentTicketId}/messages?agentId=${loggedAgentId}`);
-                if (res.status === 403) {
-                    document.getElementById('chat-messages').innerHTML = '<div class="text-red-500 text-center my-auto text-sm font-semibold">Acesso negado a este setor.</div>';
+                const res = await fetch(`/api/tickets/${ticketAtualId}/messages?agentId=${usuarioLogado.id}`);
+                const msgs = await res.json();
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = '';
+
+                if (msgs.length === 0) {
+                    container.innerHTML = '<div class="m-auto text-center text-slate-500 text-xs">Nenhuma mensagem registrada nesta conversa.</div>';
                     return;
                 }
-                const messages = await res.json();
-                const chatEl = document.getElementById('chat-messages');
-                chatEl.innerHTML = '';
-                if (!Array.isArray(messages) || messages.length === 0) {
-                    chatEl.innerHTML = '<div class="text-gray-400 text-center my-auto text-sm">Nenhuma mensagem neste chat.</div>';
-                    return;
-                }
-                messages.forEach(msg => {
-                    const isAgent = msg.sender_type === 'agent';
-                    const container = document.createElement('div');
-                    container.className = `flex flex-col max-w-xs lg:max-w-md ${isAgent ? 'self-end ml-auto items-end' : 'self-start mr-auto items-start'}`;
-                    container.innerHTML = `
-                        <span class="text-[10px] text-gray-500 mb-0.5 px-1 font-semibold">${isAgent ? (msg.sender_name || 'Atendente') : 'Cliente'}</span>
-                        <div class="px-4 py-2 rounded-lg text-sm ${isAgent ? 'bg-emerald-600 text-white' : 'bg-white text-gray-800 border'}">${msg.content}</div>
+
+                msgs.forEach(m => {
+                    const isAgent = m.sender_type === 'agent';
+                    const bubble = document.createElement('div');
+                    bubble.className = `max-w-[70%] p-3 rounded-xl text-xs space-y-1 ${isAgent ? 'bg-blue-600 text-white ml-auto' : 'bg-slate-800 text-slate-200 mr-auto'}`;
+                    bubble.innerHTML = `
+                        <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
+                        <p class="whitespace-pre-wrap">${m.content}</p>
                     `;
-                    chatEl.appendChild(container);
+                    container.appendChild(bubble);
                 });
-                chatEl.scrollTop = chatEl.scrollHeight;
-            } catch (err) { console.error('Erro mensagens:', err); }
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                console.error('Erro ao carregar mensagens:', e);
+            }
         }
 
-        async function enviarMensagem() {
+        async function enviarMensagem(event) {
+            event.preventDefault();
             const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            if (!text || !currentTicketId || !currentPhone) return;
+            const message = input.value.trim();
+            if (!message || !ticketAtualId) return;
+
             try {
-                await fetch('/api/messages/send', {
+                const res = await fetch('/api/messages/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ticketId: currentTicketId, phone: currentPhone, message: text, agentName: loggedAgentName, agentId: loggedAgentId })
+                    body: JSON.stringify({
+                        ticketId: ticketAtualId,
+                        phone: ticketAtualTelefone,
+                        message: message,
+                        agentName: usuarioLogado.name,
+                        agentId: usuarioLogado.id
+                    })
                 });
+                if (!res.ok) throw new Error('Erro ao enviar mensagem');
                 input.value = '';
-                await carregarMensagens();
-            } catch (err) { alert('Erro ao enviar mensagem.'); }
+                carregarMensagens();
+            } catch (e) {
+                alert('Erro ao enviar mensagem: ' + e.message);
+            }
+        }
+
+        async function encerrarAtendimento() {
+            if (!confirm('Deseja realmente encerrar este atendimento?')) return;
+            try {
+                await fetch(`/api/tickets/${ticketAtualId}/close`, { method: 'POST' });
+                ticketAtualId = null;
+                document.getElementById('chat-header').classList.add('hidden');
+                document.getElementById('chat-input-form').classList.add('hidden');
+                document.getElementById('chat-messages').innerHTML = '<div class="m-auto text-center text-slate-500 text-sm">Atendimento encerrado com sucesso.</div>';
+                if (intervaloMensagens) clearInterval(intervaloMensagens);
+                carregarTickets();
+            } catch (e) {
+                alert('Erro ao encerrar');
+            }
+        }
+
+        // Funções de Gestão de Atendentes (Admin)
+        async function carregarAtendentesAdmin() {
+            try {
+                const res = await fetch('/api/admin/agents');
+                const agents = await res.json();
+                const tbody = document.getElementById('agents-table-body');
+                tbody.innerHTML = '';
+
+                agents.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/40 transition";
+                    tr.innerHTML = `
+                        <td class="p-4 font-medium text-slate-200">${a.name}</td>
+                        <td class="p-4 text-slate-400">${a.email}</td>
+                        <td class="p-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${a.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}">${a.role}</span></td>
+                        <td class="p-4 text-slate-300 text-xs">${a.departments.join(', ') || 'Nenhum'}</td>
+                        <td class="p-4 text-right space-x-2">
+                            <button onclick='editarAtendente(${JSON.stringify(a)})' class="text-slate-400 hover:text-blue-400 transition"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deletarAtendente('${a.id}')" class="text-slate-400 hover:text-red-400 transition"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Erro ao carregar atendentes:', e);
+            }
+        }
+
+        function abrirModalAtendente() {
+            document.getElementById('modal-title').textContent = 'Cadastrar Novo Atendente';
+            document.getElementById('edit-agent-id').value = '';
+            document.getElementById('form-atendente').reset();
+            document.getElementById('modal-atendente').classList.remove('hidden');
+        }
+
+        function fecharModalAtendente() {
+            document.getElementById('modal-atendente').classList.add('hidden');
+        }
+
+        function editarAtendente(agent) {
+            document.getElementById('modal-title').textContent = 'Editar Atendente';
+            document.getElementById('edit-agent-id').value = agent.id;
+            document.getElementById('agent-name').value = agent.name;
+            document.getElementById('agent-email').value = agent.email;
+            document.getElementById('agent-password').value = '';
+            document.getElementById('agent-role').value = agent.role;
+
+            const checkboxes = document.querySelectorAll('input[name="agent-dept"]');
+            checkboxes.forEach(cb => {
+                cb.checked = agent.departments.includes(cb.value);
+            });
+
+            document.getElementById('modal-atendente').classList.remove('hidden');
+        }
+
+        async function salvarAtendente(event) {
+            event.preventDefault();
+            const id = document.getElementById('edit-agent-id').value;
+            const name = document.getElementById('agent-name').value;
+            const email = document.getElementById('agent-email').value;
+            const password = document.getElementById('agent-password').value;
+            const role = document.getElementById('agent-role').value;
+
+            const departments = [];
+            document.querySelectorAll('input[name="agent-dept"]:checked').forEach(cb => {
+                departments.push(cb.value);
+            });
+
+            const payload = { name, email, role, departments };
+            if (password) payload.password = password;
+
+            try {
+                const url = id ? `/api/admin/agents/${id}` : '/api/admin/agents';
+                const method = id ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
+
+                fecharModalAtendente();
+                carregarAtendentesAdmin();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function deletarAtendente(id) {
+            if (!confirm('Deseja realmente excluir este atendente?')) return;
+            try {
+                const res = await fetch(`/api/admin/agents/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Erro ao excluir');
+                carregarAtendentesAdmin();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
         }
     </script>
 </body>
