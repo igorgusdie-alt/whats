@@ -194,6 +194,8 @@ app.delete('/api/admin/agents/:id', async (req, res) => {
 app.post('/webhook/whatsapp', async (req, res) => {
   try {
     const { event, data } = req.body;
+    console.log('WEBHOOK EVENT:', event);
+
     if (event === 'messages.upsert') {
       const message = data;
       const remoteJid = message?.key?.remoteJid;
@@ -213,13 +215,28 @@ app.post('/webhook/whatsapp', async (req, res) => {
         contact = newC;
       }
 
-      // Busca o último ticket deste contato para manter a referência unificada
+      // Busca o último ticket deste contato
       let { data: tickets } = await supabase.from('tickets').select('id, status, department').eq('contact_id', contact.id).order('created_at', { ascending: false }).limit(1);
       let ticket = tickets && tickets.length > 0 ? tickets[0] : null;
 
-      // Se não houver ticket ou se o último estiver fechado ('closed'), criamos um novo ticket pendente para exigir o setor
+      // Se não houver ticket ou se o último estiver fechado ('closed'), cria um novo ticket pendente com as datas exigidas pelo banco
       if (!ticket || ticket.status === 'closed') {
-        const { data: newT } = await supabase.from('tickets').insert([{ contact_id: contact.id, status: 'pending', department: null }]).select('id, status, department').single();
+        const now = new Date();
+        const { data: newT, error: errNewT } = await supabase.from('tickets').insert([{ 
+          contact_id: contact.id, 
+          status: 'pending', 
+          department: null,
+          created_at: now,
+          updated_at: now,
+          started_at: now,
+          last_message_at: now
+        }]).select('id, status, department').single();
+
+        if (errNewT) {
+          console.error('Erro ao inserir ticket no Supabase:', errNewT);
+          return res.status(500).json({ error: errNewT.message });
+        }
+        
         ticket = newT;
         
         // Envia a mensagem de boas-vindas pedindo o setor
@@ -231,7 +248,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       if (!ticket.department) {
         let escolhido = text === '1' ? 'suporte' : text === '2' ? 'financeiro' : text === '3' ? 'comercial' : null;
         if (escolhido) {
-          await supabase.from('tickets').update({ department: escolhido, status: 'open', updated_at: new Date() }).eq('id', ticket.id);
+          await supabase.from('tickets').update({ department: escolhido, status: 'open', updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
           await enviarMensagemWhatsApp(cleanPhone, `Você foi direcionado para o setor de **${escolhido.toUpperCase()}**. Um atendente já vai lhe responder!`);
           return res.status(200).json({ status: 'dept_set' });
         } else {
@@ -243,11 +260,12 @@ app.post('/webhook/whatsapp', async (req, res) => {
       // Se veio do cliente e o atendimento já está aberto com setor, salva a mensagem no ticket atual
       if (!fromMe) {
         await supabase.from('messages').insert([{ ticket_id: ticket.id, sender_type: 'client', sender_name: pushName, content: text }]);
-        await supabase.from('tickets').update({ updated_at: new Date() }).eq('id', ticket.id);
+        await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
       }
     }
     res.status(200).json({ status: 'success' });
   } catch (error) {
+    console.error('Erro crítico no webhook:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -281,7 +299,7 @@ app.post('/api/messages/send', async (req, res) => {
     }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
 
     await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: agentName || 'Atendente', content: message }]);
-    await supabase.from('tickets').update({ updated_at: new Date() }).eq('id', ticketId);
+    await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticketId);
     
     res.status(200).json({ success: true });
   } catch (error) {
@@ -293,7 +311,7 @@ app.post('/api/messages/send', async (req, res) => {
 app.post('/api/tickets/:ticketId/close', async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { error } = await supabase.from('tickets').update({ status: 'closed', updated_at: new Date() }).eq('id', ticketId);
+    const { error } = await supabase.from('tickets').update({ status: 'closed', updated_at: new Date(), closed_at: new Date() }).eq('id', ticketId);
     if (error) throw error;
     res.json({ success: true });
   } catch (error) {
