@@ -34,13 +34,16 @@ async function fetchProfilePicture(phone) {
 
 async function enviarMensagemWhatsApp(phone, text) {
   try {
+    console.log("DEBUG [enviarMensagemWhatsApp] URL:", `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`);
+    console.log("DEBUG [enviarMensagemWhatsApp] KEY carregada:", EVOLUTION_API_KEY ? EVOLUTION_API_KEY.substring(0, 8) + '...' : 'VAZIA');
+
     await axios.post(
       `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`,
       { number: phone, text: text },
       { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Erro ao enviar mensagem:', error?.response?.data || error.message);
+    console.error('Erro ao enviar mensagem automática:', error?.response?.data || error.message);
   }
 }
 
@@ -294,6 +297,11 @@ app.get('/api/tickets/:ticketId/messages', async (req, res) => {
 app.post('/api/messages/send', async (req, res) => {
   try {
     const { ticketId, phone, message, agentName } = req.body;
+    
+    // LOGS DE DEBUG
+    console.log("DEBUG [api/messages/send] URL:", `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`);
+    console.log("DEBUG [api/messages/send] KEY carregada:", EVOLUTION_API_KEY ? EVOLUTION_API_KEY.substring(0, 8) + '...' : 'VAZIA');
+
     await axios.post(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
       number: phone, text: `*${agentName || 'Atendente'}:*\n${message}`
     }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
@@ -303,6 +311,7 @@ app.post('/api/messages/send', async (req, res) => {
     
     res.status(200).json({ success: true });
   } catch (error) {
+    console.error('Erro detalhado ao enviar via painel:', error.response?.data || error.message);
     res.status(500).json({ error: error.message });
   }
 });
