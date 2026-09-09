@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Net - Painel de Atendimento</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="LOGO OFICIAL REDES.jpeg">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,7 +16,7 @@
     <div id="login-screen" class="flex items-center justify-center h-full bg-slate-950 absolute inset-0 z-50">
         <div class="bg-slate-900 p-8 rounded-xl shadow-2xl border border-slate-800 w-full max-w-md">
             <div class="text-center mb-6 flex flex-col items-center">
-                <img id="login-logo-img" src="logo.png" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=Web+Net';">
+                <img id="login-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-24 object-contain mb-4" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=Web+Net';">
                 <h1 class="text-2xl font-bold tracking-wide">Web Net Atendimento</h1>
                 <p class="text-xs text-slate-400 mt-1">Faça login para acessar o painel</p>
             </div>
@@ -40,7 +42,7 @@
         <aside class="w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between">
             <div>
                 <div class="p-5 border-b border-slate-800 flex items-center justify-center">
-                    <img id="sidebar-logo-img" src="logo.png" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.src='https://via.placeholder.com/120?text=Web+Net';">
+                    <img id="sidebar-logo-img" src="LOGO OFICIAL REDES.jpeg" alt="Web Net Logo" class="h-10 object-contain" onerror="this.onerror=null; this.src='https://via.placeholder.com/120?text=Web+Net';">
                 </div>
                 <nav class="p-3 space-y-1">
                     <button onclick="mudarAba('atendimento')" id="nav-atendimento" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition">
@@ -398,10 +400,8 @@
                 tickets.forEach(t => {
                     const contact = t.contacts || { name: 'Cliente', phone_number: '' };
                     
-                    // Descobre quem falou por último ou quem está atendendo
                     let responsavelOuUltimo = t.last_agent_name || t.agent_name || 'Aguardando';
                     if (t.messages && t.messages.length > 0) {
-                        // Pega a última mensagem da conversa se estiver populada
                         const ultimaMsg = t.messages[t.messages.length - 1];
                         if (ultimaMsg.sender_name) {
                             responsavelOuUltimo = ultimaMsg.sender_name;
@@ -513,7 +513,6 @@
             const select = document.getElementById('select-novo-atendente');
             select.innerHTML = '';
 
-            // Filtra para não aparecer o próprio usuário logado na lista de transferência (opcional, mas recomendado)
             const outrosAtendentes = listaAtendentesSistema.filter(a => a.id !== usuarioLogado.id);
 
             if (outrosAtendentes.length === 0) {
@@ -560,7 +559,6 @@
                 alert(`Atendimento transferido para ${nomeNovoAtendente} com sucesso!`);
                 fecharModalTransferir();
 
-                // Limpa o chat ativo da tela pois foi transferido
                 ticketAtualId = null;
                 document.getElementById('chat-header').classList.add('hidden');
                 document.getElementById('chat-input-form').classList.add('hidden');
@@ -759,7 +757,7 @@
         async function deletarAtendente(id) {
             if (!confirm('Deseja realmente excluir este atendente?')) return;
             try {
-                const res = await fetch(`/api/admin/agents/${ID}`, { method: 'DELETE' });
+                const res = await fetch(`/api/admin/agents/${id}`, { method: 'DELETE' });
                 if (!res.ok) throw new Error('Erro ao excluir');
                 carregarAtendentesAdmin();
                 carregarAtendentesGeral();
