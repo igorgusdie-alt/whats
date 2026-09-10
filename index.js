@@ -262,7 +262,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
           await supabase.from('messages').insert([{ 
             ticket_id: ticket.id, 
             sender_type: 'agent', 
-            sender_name: 'Equipe Web Net', 
+            sender_name: 'Enviado via celular', 
             content: text 
           }]);
           await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
