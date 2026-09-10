@@ -119,7 +119,7 @@
             </section>
         </main>
 
-        <!-- CONTEÚDO DA ABA HISTÓRICO (AGORA COM O PAINEL À DIREITA IGUAL À ABA PRINCIPAL) -->
+        <!-- CONTEÚDO DA ABA HISTÓRICO -->
         <main id="tab-historico" class="hidden flex-1 h-full overflow-hidden">
             <!-- Lista de Tickets Fechados -->
             <section class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
@@ -130,7 +130,7 @@
                 <div id="history-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60"></div>
             </section>
 
-            <!-- Visualização do Histórico Selecionado (Posicionado à Direita) -->
+            <!-- Visualização do Histórico Selecionado -->
             <section class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
                 <div id="history-header" class="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3 hidden">
                     <img id="history-contact-pic" src="" class="w-9 h-9 rounded-full object-cover bg-slate-800" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\'><path d=\'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\'></path><circle cx=\'12\' cy=\'7\' r=\'4\'></circle></svg>'">
@@ -685,8 +685,12 @@
             document.getElementById('agent-password').value = '';
             document.getElementById('agent-role').value = agent.role;
 
-            const checkboxes = document.querySelectorAll('input[name="agent-dept"]');
-            checkboxes.forEach(cb => cb.checked = agent.departments.includes(cb.value));
+            // Mapeamento correto e seguro dos checkboxes do modal de atendente
+            const checkboxes = document.querySelectorAll('#modal-atendente input[name="agent-dept"]');
+            checkboxes.forEach(cb => {
+                cb.checked = agent.departments && agent.departments.includes(cb.value);
+            });
+            
             document.getElementById('modal-atendente').classList.remove('hidden');
         }
 
@@ -698,8 +702,12 @@
             const password = document.getElementById('agent-password').value;
             const role = document.getElementById('agent-role').value;
 
+            // Captura robusta dos setores selecionados no escopo exato do modal
             const departments = [];
-            document.querySelectorAll('input[name="agent-dept"]:checked').forEach(cb => departments.push(cb.value));
+            const checkboxes = document.querySelectorAll('#modal-atendente input[name="agent-dept"]:checked');
+            checkboxes.forEach(cb => {
+                if (cb.value) departments.push(cb.value);
+            });
 
             const payload = { name, email: emailVal, role, departments };
             if (password) payload.password = password;
