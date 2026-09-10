@@ -192,7 +192,7 @@ app.delete('/api/admin/agents/:id', async (req, res) => {
   }
 });
 
-// NOVA ROTA PROXY DE MÍDIA: Permite reproduzir áudios protegidos pela API do WhatsApp/Evolution sem erro de CORS
+// PROXY DE MÍDIA CORRIGIDO: Força content-type de áudio se vier como octet-stream
 app.get('/api/media/proxy', async (req, res) => {
   try {
     const mediaUrl = req.query.url;
@@ -203,7 +203,12 @@ app.get('/api/media/proxy', async (req, res) => {
       headers: { 'apikey': EVOLUTION_API_KEY }
     });
 
-    response.headers['content-type'] && res.setHeader('content-type', response.headers['content-type']);
+    let contentType = response.headers['content-type'];
+    if (!contentType || contentType === 'application/octet-stream') {
+      contentType = 'audio/ogg';
+    }
+
+    res.setHeader('content-type', contentType);
     response.data.pipe(res);
   } catch (error) {
     console.error('Erro no proxy de mídia:', error.message);
@@ -224,7 +229,6 @@ app.post('/webhook/whatsapp', async (req, res) => {
       if (!remoteJid || remoteJid.endsWith('@g.us')) return res.status(200).send('Ignorado');
       const cleanPhone = remoteJid.replace('@s.whatsapp.net', '');
 
-      // Extração segura de texto e mídias da mensagem do WhatsApp / Evolution API
       const msgBody = message?.message;
       const text = (msgBody?.conversation || msgBody?.extendedTextMessage?.text || msgBody?.imageMessage?.caption || msgBody?.videoMessage?.caption || '').trim();
       
