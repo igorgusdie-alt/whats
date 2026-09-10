@@ -329,8 +329,12 @@
             document.getElementById('user-display-name').textContent = usuarioLogado.name;
             document.getElementById('user-display-role').textContent = usuarioLogado.role === 'admin' ? 'Administrador' : 'Atendente';
 
+            // Controle estrito de visibilidade da aba de gerenciamento
+            const navGerenciamento = document.getElementById('nav-gerenciamento');
             if (usuarioLogado.role === 'admin') {
-                document.getElementById('nav-gerenciamento').classList.remove('hidden');
+                navGerenciamento.classList.remove('hidden');
+            } else {
+                navGerenciamento.classList.add('hidden');
             }
 
             carregarAtendentesGeral();
@@ -355,6 +359,12 @@
         }
 
         function mudarAba(aba) {
+            // Validação de segurança: Impedir estritamente que usuários comuns acessem a aba de gerenciamento
+            if (aba === 'gerenciamento' && (!usuarioLogado || usuarioLogado.role !== 'admin')) {
+                alert('Acesso negado. Apenas administradores podem acessar o gerenciamento.');
+                return;
+            }
+
             const btnAtendimento = document.getElementById('nav-atendimento');
             const btnHistorico = document.getElementById('nav-historico');
             const btnGerenciamento = document.getElementById('nav-gerenciamento');
@@ -377,7 +387,7 @@
                 btnHistorico.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
                 tabHistorico.classList.remove('hidden');
                 carregarHistorico();
-            } else if (aba === 'gerenciamento') {
+            } else if (aba === 'gerenciamento' && usuarioLogado && usuarioLogado.role === 'admin') {
                 if(btnGerenciamento) btnGerenciamento.className = "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
                 tabGerenciamento.classList.remove('hidden');
                 carregarAtendentesAdmin();
@@ -685,7 +695,6 @@
             document.getElementById('agent-password').value = '';
             document.getElementById('agent-role').value = agent.role;
 
-            // Mapeamento correto e seguro dos checkboxes do modal de atendente
             const checkboxes = document.querySelectorAll('#modal-atendente input[name="agent-dept"]');
             checkboxes.forEach(cb => {
                 cb.checked = agent.departments && agent.departments.includes(cb.value);
@@ -702,7 +711,6 @@
             const password = document.getElementById('agent-password').value;
             const role = document.getElementById('agent-role').value;
 
-            // Captura robusta dos setores selecionados no escopo exato do modal
             const departments = [];
             const checkboxes = document.querySelectorAll('#modal-atendente input[name="agent-dept"]:checked');
             checkboxes.forEach(cb => {
