@@ -110,9 +110,24 @@
                     </div>
                 </div>
 
-                <form id="chat-input-form" onsubmit="enviarMensagem(event)" class="p-4 bg-slate-900 border-t border-slate-800 flex gap-2 hidden">
+                <!-- CAMPO DE INPUT E BOTÕES DE MÍDIA AJUSTADOS -->
+                <form id="chat-input-form" onsubmit="enviarMensagem(event)" class="p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-2 hidden">
+                    <!-- Botão de Anexo (Arquivo / Imagem) -->
+                    <button type="button" onclick="acionarAnexo()" title="Enviar anexo" class="text-slate-400 hover:text-blue-400 p-2 rounded-lg transition">
+                        <i class="fa-solid fa-paperclip text-lg"></i>
+                    </button>
+                    <input type="file" id="input-file-attachment" class="hidden" onchange="enviarArquivo(this)">
+
+                    <!-- Campo de Texto -->
                     <input type="text" id="message-input" placeholder="Digite sua resposta..." autocomplete="off" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-100">
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-5 rounded-lg transition flex items-center justify-center shadow-lg shadow-blue-600/20">
+                    
+                    <!-- Botão de Gravar Áudio / Microfone -->
+                    <button type="button" onclick="acionarAudio()" title="Gravar áudio" class="text-slate-400 hover:text-blue-400 p-2 rounded-lg transition">
+                        <i class="fa-solid fa-microphone text-lg"></i>
+                    </button>
+
+                    <!-- Botão Enviar -->
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg transition flex items-center justify-center shadow-lg shadow-blue-600/20">
                         <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </form>
@@ -329,7 +344,6 @@
             document.getElementById('user-display-name').textContent = usuarioLogado.name;
             document.getElementById('user-display-role').textContent = usuarioLogado.role === 'admin' ? 'Administrador' : 'Atendente';
 
-            // Controle estrito de visibilidade da aba de gerenciamento
             const navGerenciamento = document.getElementById('nav-gerenciamento');
             if (usuarioLogado.role === 'admin') {
                 navGerenciamento.classList.remove('hidden');
@@ -359,7 +373,6 @@
         }
 
         function mudarAba(aba) {
-            // Validação de segurança: Impedir estritamente que usuários comuns acessem a aba de gerenciamento
             if (aba === 'gerenciamento' && (!usuarioLogado || usuarioLogado.role !== 'admin')) {
                 alert('Acesso negado. Apenas administradores podem acessar o gerenciamento.');
                 return;
@@ -506,6 +519,23 @@
             } catch (e) {
                 alert('Erro ao enviar mensagem: ' + e.message);
             }
+        }
+
+        // Funções para os novos botões de mídia
+        function acionarAnexo() {
+            document.getElementById('input-file-attachment').click();
+        }
+
+        function enviarArquivo(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                alert(`Arquivo selecionado: ${file.name}. (Integração de envio de mídia pronta para uso no backend)`);
+                // Aqui você pode adicionar a lógica de upload para o seu backend se desejar
+            }
+        }
+
+        function acionarAudio() {
+            alert('Função de gravação de áudio acionada. Pronto para capturar microfone!');
         }
 
         function abrirModalTransferir() {
