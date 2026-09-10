@@ -355,6 +355,72 @@ app.post('/api/messages/send', async (req, res) => {
   }
 });
 
+// NOVA ROTA: Envio de Mídia (Imagens e Documentos) via Painel
+app.post('/api/messages/send-media', async (req, res) => {
+  try {
+    const { ticketId, phone, mediaUrl, mediaType, fileName, caption, agentName } = req.body;
+    const nomeAtendente = agentName || 'Atendente';
+
+    await axios.post(`${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE}`, {
+      number: phone,
+      mediatype: mediaType, 
+      mimetype: mediaType === 'image' ? 'image/jpeg' : 'application/pdf',
+      media: mediaUrl, 
+      fileName: fileName || 'arquivo',
+      caption: `*${nomeAtendente}:*\n${caption || ''}`
+    }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
+
+    await supabase.from('messages').insert([{ 
+      ticket_id: ticketId, 
+      sender_type: 'agent', 
+      sender_name: nomeAtendente, 
+      content: `📁 [Arquivo: ${fileName || mediaType}] ${caption || ''}` 
+    }]);
+    
+    await supabase.from('tickets').update({ 
+      updated_at: new Date(), 
+      last_message_at: new Date(),
+      last_agent_name: nomeAtendente
+    }).eq('id', ticketId);
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Erro detalhado ao enviar mídia:', error.response?.data || error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// NOVA ROTA: Envio de Áudio (Nota de Voz) gravado pelo painel
+app.post('/api/messages/send-audio', async (req, res) => {
+  try {
+    const { ticketId, phone, audioBase64, agentName } = req.body;
+    const nomeAtendente = agentName || 'Atendente';
+
+    await axios.post(`${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${EVOLUTION_INSTANCE}`, {
+      number: phone,
+      audio: audioBase64 
+    }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
+
+    await supabase.from('messages').insert([{ 
+      ticket_id: ticketId, 
+      sender_type: 'agent', 
+      sender_name: nomeAtendente, 
+      content: '🎤 [Áudio gravado]' 
+    }]);
+    
+    await supabase.from('tickets').update({ 
+      updated_at: new Date(), 
+      last_message_at: new Date(),
+      last_agent_name: nomeAtendente
+    }).eq('id', ticketId);
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Erro detalhado ao enviar áudio:', error.response?.data || error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/tickets/:id/assign', async (req, res) => {
   try {
     const ticketId = req.params.id;
