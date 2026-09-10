@@ -485,7 +485,7 @@
                     let conteudoHtml = '';
                     
                     // Suporte a reprodução de Áudio (WhatsApp PTT / Audio)
-                    if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav')))) {
+                    if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav') || m.media_url.includes('supabase.co')) && m.type !== 'image')) {
                         const urlAudio = m.media_url || m.content;
                         conteudoHtml = `
                             <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
@@ -689,7 +689,7 @@
                 bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
                 
                 let conteudoHtml = '';
-                if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav')))) {
+                if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav') || m.media_url.includes('supabase.co')) && m.type !== 'image')) {
                     const urlAudio = m.media_url || m.content;
                     conteudoHtml = `
                         <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
@@ -783,7 +783,7 @@
             const name = document.getElementById('agent-name').value;
             const emailVal = document.getElementById('agent-email').value;
             const password = document.getElementById('agent-password').value;
-            const role = document.getElementById('agent-role').value;
+            const role = document.getElementById('agent-role-role').value || document.getElementById('agent-role').value;
 
             const departments = [];
             const checkboxes = document.querySelectorAll('#modal-atendente input[name="agent-dept"]:checked');
