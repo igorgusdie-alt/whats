@@ -200,11 +200,28 @@ app.post('/webhook/whatsapp', async (req, res) => {
       const message = data;
       const remoteJid = message?.key?.remoteJid;
       const fromMe = message?.key?.fromMe;
-      const text = (message?.message?.conversation || message?.message?.extendedTextMessage?.text || '').trim();
       const pushName = message?.pushName || 'Cliente';
 
       if (!remoteJid || remoteJid.endsWith('@g.us')) return res.status(200).send('Ignorado');
       const cleanPhone = remoteJid.replace('@s.whatsapp.net', '');
+
+      // Extração de texto e mídias da mensagem do WhatsApp
+      const msgBody = message?.message;
+      const text = (msgBody?.conversation || msgBody?.extendedTextMessage?.text || msgBody?.imageMessage?.caption || msgBody?.videoMessage?.caption || '').trim();
+      
+      let mediaUrl = null;
+      let msgType = 'text';
+
+      if (msgBody?.audioMessage) {
+        msgType = msgBody.audioMessage.ptt ? 'ptt' : 'audio';
+        mediaUrl = msgBody.audioMessage.url || data?.messageContextInfo?.quotedMessage?.audioMessage?.url;
+      } else if (msgBody?.imageMessage) {
+        msgType = 'image';
+        mediaUrl = msgBody.imageMessage.url;
+      } else if (msgBody?.documentMessage) {
+        msgType = 'document';
+        mediaUrl = msgBody.documentMessage.url;
+      }
 
       let { data: contacts } = await supabase.from('contacts').select('id, profile_pic_url').eq('phone_number', cleanPhone);
       let contact = contacts && contacts.length > 0 ? contacts[0] : null;
@@ -256,19 +273,35 @@ app.post('/webhook/whatsapp', async (req, res) => {
         }
       }
 
-      // Captura e salva mensagens enviadas pelo celular (fromMe)
+      // Captura e salva mensagens enviadas pelo celular (fromMe) ou recebidas do cliente
+      let contentToSave = text;
+      if (msgType === 'audio' || msgType === 'ptt') {
+        contentToSave = contentToSave || '🎤 [Áudio recebido]';
+      } else if (msgType === 'image') {
+        contentToSave = contentToSave || '📷 [Imagem recebida]';
+      } else if (msgType === 'document') {
+        contentToSave = contentToSave || '📁 [Documento recebido]';
+      }
+
       if (fromMe) {
-        if (text) {
-          await supabase.from('messages').insert([{ 
-            ticket_id: ticket.id, 
-            sender_type: 'agent', 
-            sender_name: 'Enviado via celular', 
-            content: text 
-          }]);
-          await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
-        }
+        await supabase.from('messages').insert([{ 
+          ticket_id: ticket.id, 
+          sender_type: 'agent', 
+          sender_name: 'Enviado via celular', 
+          content: contentToSave,
+          media_url: mediaUrl,
+          type: msgType
+        }]);
+        await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
       } else {
-        await supabase.from('messages').insert([{ ticket_id: ticket.id, sender_type: 'client', sender_name: pushName, content: text }]);
+        await supabase.from('messages').insert([{ 
+          ticket_id: ticket.id, 
+          sender_type: 'client', 
+          sender_name: pushName, 
+          content: contentToSave,
+          media_url: mediaUrl,
+          type: msgType
+        }]);
         await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
       }
     }
@@ -340,7 +373,13 @@ app.post('/api/messages/send', async (req, res) => {
       text: `*${nomeAtendente}:*\n${message}`
     }, { headers: { 'apikey': EVOLUTION_API_KEY, 'Content-Type': 'application/json' } });
 
-    await supabase.from('messages').insert([{ ticket_id: ticketId, sender_type: 'agent', sender_name: nomeAtendente, content: message }]);
+    await supabase.from('messages').insert([{ 
+      ticket_id: ticketId, 
+      sender_type: 'agent', 
+      sender_name: nomeAtendente, 
+      content: message,
+      type: 'text'
+    }]);
     
     await supabase.from('tickets').update({ 
       updated_at: new Date(), 
@@ -374,7 +413,9 @@ app.post('/api/messages/send-media', async (req, res) => {
       ticket_id: ticketId, 
       sender_type: 'agent', 
       sender_name: nomeAtendente, 
-      content: `📁 [Arquivo: ${fileName || mediaType}] ${caption || ''}` 
+      content: `📁 [Arquivo: ${fileName || mediaType}] ${caption || ''}`,
+      media_url: mediaUrl,
+      type: mediaType
     }]);
     
     await supabase.from('tickets').update({ 
@@ -405,7 +446,8 @@ app.post('/api/messages/send-audio', async (req, res) => {
       ticket_id: ticketId, 
       sender_type: 'agent', 
       sender_name: nomeAtendente, 
-      content: '🎤 [Áudio gravado]' 
+      content: '🎤 [Áudio gravado]',
+      type: 'ptt'
     }]);
     
     await supabase.from('tickets').update({ 
@@ -441,7 +483,8 @@ app.post('/api/tickets/:id/assign', async (req, res) => {
       ticket_id: ticketId,
       sender_type: 'system',
       sender_name: 'Sistema',
-      content: `Atendimento assumido por ${agentName}.`
+      content: `Atendimento assumido por ${agentName}.`,
+      type: 'text'
     }]);
 
     res.json({ success: true, message: 'Atendimento atribuído com sucesso' });
@@ -471,7 +514,8 @@ app.post('/api/tickets/:id/transfer', async (req, res) => {
       ticket_id: ticketId,
       sender_type: 'system',
       sender_name: 'Sistema',
-      content: `Atendimento transferido de ${transferrerName || 'um atendente'} para ${newAgentName}.`
+      content: `Atendimento transferido de ${transferrerName || 'um atendente'} para ${newAgentName}.`,
+      type: 'text'
     }]);
 
     res.json({ success: true, message: 'Atendimento transferido com sucesso' });
