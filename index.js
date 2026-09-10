@@ -2,12 +2,16 @@
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json({ limit: '10mb' })); 
 app.use(cors());
-app.use(express.static('public'));
+
+// Configuração robusta para servir arquivos estáticos e corrigir o layout
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 const supabaseUrl = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/\/$/, '') : '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -43,7 +47,12 @@ async function enviarMensagemWhatsApp(phone, text) {
 }
 
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.sendFile(path.join(__dirname, 'index.html'));
+    }
+  });
 });
 
 app.get('/api/settings', async (req, res) => {
@@ -247,7 +256,18 @@ app.post('/webhook/whatsapp', async (req, res) => {
         }
       }
 
-      if (!fromMe) {
+      // Captura e salva mensagens enviadas pelo celular (fromMe)
+      if (fromMe) {
+        if (text) {
+          await supabase.from('messages').insert([{ 
+            ticket_id: ticket.id, 
+            sender_type: 'agent', 
+            sender_name: 'Equipe Web Net', 
+            content: text 
+          }]);
+          await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
+        }
+      } else {
         await supabase.from('messages').insert([{ ticket_id: ticket.id, sender_type: 'client', sender_name: pushName, content: text }]);
         await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
       }
