@@ -110,7 +110,7 @@
                     </div>
                 </div>
 
-                <!-- CAMPO DE INPUT E BOTÕES DE MÍDIA AJUSTADOS -->
+                <!-- CAMPO DE INPUT E BOTÕES DE MÍDIA -->
                 <form id="chat-input-form" onsubmit="enviarMensagem(event)" class="p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-2 hidden">
                     <!-- Botão de Anexo (Arquivo / Imagem) -->
                     <button type="button" onclick="acionarAnexo()" title="Enviar anexo" class="text-slate-400 hover:text-blue-400 p-2 rounded-lg transition">
@@ -482,13 +482,37 @@
                     const bubble = document.createElement('div');
                     bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
                     
-                    let conteudoHtml = `<p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>`;
-                    if (m.media_url || m.type === 'image') {
+                    let conteudoHtml = '';
+                    
+                    // Suporte a reprodução de Áudio (WhatsApp PTT / Audio)
+                    if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav')))) {
+                        const urlAudio = m.media_url || m.content;
+                        conteudoHtml = `
+                            <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <audio controls class="max-w-xs h-9">
+                                    <source src="${urlAudio}" type="audio/ogg">
+                                    <source src="${urlAudio}" type="audio/mp4">
+                                    <source src="${urlAudio}" type="audio/mpeg">
+                                    Seu navegador não suporta reprodução de áudio.
+                                </audio>
+                            </div>
+                        `;
+                    } else if (m.media_url || m.type === 'image') {
                         const urlMidia = m.media_url || m.content;
-                        conteudoHtml += `<img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">`;
+                        conteudoHtml = `
+                            <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
+                            <p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>
+                            <img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">
+                        `;
+                    } else {
+                        conteudoHtml = `
+                            <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
+                            <p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>
+                        `;
                     }
 
-                    bubble.innerHTML = `<p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>${conteudoHtml}`;
+                    bubble.innerHTML = conteudoHtml;
                     container.appendChild(bubble);
                 });
 
@@ -521,7 +545,6 @@
             }
         }
 
-        // Funções para os novos botões de mídia
         function acionarAnexo() {
             document.getElementById('input-file-attachment').click();
         }
@@ -529,13 +552,12 @@
         function enviarArquivo(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                alert(`Arquivo selecionado: ${file.name}. (Integração de envio de mídia pronta para uso no backend)`);
-                // Aqui você pode adicionar a lógica de upload para o seu backend se desejar
+                alert(`Arquivo selecionado: ${file.name}.`);
             }
         }
 
         function acionarAudio() {
-            alert('Função de gravação de áudio acionada. Pronto para capturar microfone!');
+            alert('Função de gravação de áudio acionada.');
         }
 
         function abrirModalTransferir() {
@@ -666,13 +688,35 @@
                 const bubble = document.createElement('div');
                 bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
                 
-                let conteudoHtml = `<p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>`;
-                if (m.media_url || m.type === 'image') {
+                let conteudoHtml = '';
+                if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav')))) {
+                    const urlAudio = m.media_url || m.content;
+                    conteudoHtml = `
+                        <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <audio controls class="max-w-xs h-9">
+                                <source src="${urlAudio}" type="audio/ogg">
+                                <source src="${urlAudio}" type="audio/mp4">
+                                <source src="${urlAudio}" type="audio/mpeg">
+                                Seu navegador não suporta reprodução de áudio.
+                            </audio>
+                        </div>
+                    `;
+                } else if (m.media_url || m.type === 'image') {
                     const urlMidia = m.media_url || m.content;
-                    conteudoHtml += `<img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">`;
+                    conteudoHtml = `
+                        <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
+                        <p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>
+                        <img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">
+                    `;
+                } else {
+                    conteudoHtml = `
+                        <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
+                        <p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>
+                    `;
                 }
 
-                bubble.innerHTML = `<p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>${conteudoHtml}`;
+                bubble.innerHTML = conteudoHtml;
                 container.appendChild(bubble);
             });
             
