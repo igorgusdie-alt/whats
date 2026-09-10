@@ -484,16 +484,17 @@
                     
                     let conteudoHtml = '';
                     
-                    // Suporte a reprodução de Áudio (WhatsApp PTT / Audio)
+                    // Suporte a reprodução de Áudio com Proxy para Evolution API
                     if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav') || m.media_url.includes('supabase.co')) && m.type !== 'image')) {
-                        const urlAudio = m.media_url || m.content;
+                        const rawAudioUrl = m.media_url || m.content;
+                        const audioSrc = rawAudioUrl ? `/api/media/proxy?url=${encodeURIComponent(rawAudioUrl)}` : '';
                         conteudoHtml = `
                             <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
                             <div class="flex items-center gap-2 mt-1">
                                 <audio controls class="max-w-xs h-9">
-                                    <source src="${urlAudio}" type="audio/ogg">
-                                    <source src="${urlAudio}" type="audio/mp4">
-                                    <source src="${urlAudio}" type="audio/mpeg">
+                                    <source src="${audioSrc}" type="audio/ogg">
+                                    <source src="${audioSrc}" type="audio/mp4">
+                                    <source src="${audioSrc}" type="audio/mpeg">
                                     Seu navegador não suporta reprodução de áudio.
                                 </audio>
                             </div>
@@ -690,14 +691,15 @@
                 
                 let conteudoHtml = '';
                 if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav') || m.media_url.includes('supabase.co')) && m.type !== 'image')) {
-                    const urlAudio = m.media_url || m.content;
+                    const rawAudioUrl = m.media_url || m.content;
+                    const audioSrc = rawAudioUrl ? `/api/media/proxy?url=${encodeURIComponent(rawAudioUrl)}` : '';
                     conteudoHtml = `
                         <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
                         <div class="flex items-center gap-2 mt-1">
                             <audio controls class="max-w-xs h-9">
-                                <source src="${urlAudio}" type="audio/ogg">
-                                <source src="${urlAudio}" type="audio/mp4">
-                                <source src="${urlAudio}" type="audio/mpeg">
+                                <source src="${audioSrc}" type="audio/ogg">
+                                <source src="${audioSrc}" type="audio/mp4">
+                                <source src="${audioSrc}" type="audio/mpeg">
                                 Seu navegador não suporta reprodução de áudio.
                             </audio>
                         </div>

@@ -192,6 +192,25 @@ app.delete('/api/admin/agents/:id', async (req, res) => {
   }
 });
 
+// NOVA ROTA PROXY DE MÍDIA: Permite reproduzir áudios protegidos pela API do WhatsApp/Evolution sem erro de CORS
+app.get('/api/media/proxy', async (req, res) => {
+  try {
+    const mediaUrl = req.query.url;
+    if (!mediaUrl) return res.status(400).json({ error: 'URL não informada' });
+
+    const response = await axios.get(mediaUrl, {
+      responseType: 'stream',
+      headers: { 'apikey': EVOLUTION_API_KEY }
+    });
+
+    response.headers['content-type'] && res.setHeader('content-type', response.headers['content-type']);
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('Erro no proxy de mídia:', error.message);
+    res.status(500).json({ error: 'Erro ao carregar mídia' });
+  }
+});
+
 app.post('/webhook/whatsapp', async (req, res) => {
   try {
     const { event, data } = req.body;
@@ -205,7 +224,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       if (!remoteJid || remoteJid.endsWith('@g.us')) return res.status(200).send('Ignorado');
       const cleanPhone = remoteJid.replace('@s.whatsapp.net', '');
 
-      // Extração de texto e mídias da mensagem do WhatsApp
+      // Extração segura de texto e mídias da mensagem do WhatsApp / Evolution API
       const msgBody = message?.message;
       const text = (msgBody?.conversation || msgBody?.extendedTextMessage?.text || msgBody?.imageMessage?.caption || msgBody?.videoMessage?.caption || '').trim();
       
@@ -214,13 +233,13 @@ app.post('/webhook/whatsapp', async (req, res) => {
 
       if (msgBody?.audioMessage) {
         msgType = msgBody.audioMessage.ptt ? 'ptt' : 'audio';
-        mediaUrl = msgBody.audioMessage.url || data?.messageContextInfo?.quotedMessage?.audioMessage?.url;
+        mediaUrl = msgBody.audioMessage.url || data?.messageContextInfo?.quotedMessage?.audioMessage?.url || message?.mediaUrl;
       } else if (msgBody?.imageMessage) {
         msgType = 'image';
-        mediaUrl = msgBody.imageMessage.url;
+        mediaUrl = msgBody.imageMessage.url || message?.mediaUrl;
       } else if (msgBody?.documentMessage) {
         msgType = 'document';
-        mediaUrl = msgBody.documentMessage.url;
+        mediaUrl = msgBody.documentMessage.url || message?.mediaUrl;
       }
 
       let { data: contacts } = await supabase.from('contacts').select('id, profile_pic_url').eq('phone_number', cleanPhone);
@@ -273,7 +292,6 @@ app.post('/webhook/whatsapp', async (req, res) => {
         }
       }
 
-      // Captura e salva mensagens enviadas pelo celular (fromMe) ou recebidas do cliente
       let contentToSave = text;
       if (msgType === 'audio' || msgType === 'ptt') {
         contentToSave = contentToSave || '🎤 [Áudio recebido]';
@@ -283,27 +301,16 @@ app.post('/webhook/whatsapp', async (req, res) => {
         contentToSave = contentToSave || '📁 [Documento recebido]';
       }
 
-      if (fromMe) {
-        await supabase.from('messages').insert([{ 
-          ticket_id: ticket.id, 
-          sender_type: 'agent', 
-          sender_name: 'Enviado via celular', 
-          content: contentToSave,
-          media_url: mediaUrl,
-          type: msgType
-        }]);
-        await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
-      } else {
-        await supabase.from('messages').insert([{ 
-          ticket_id: ticket.id, 
-          sender_type: 'client', 
-          sender_name: pushName, 
-          content: contentToSave,
-          media_url: mediaUrl,
-          type: msgType
-        }]);
-        await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
-      }
+      await supabase.from('messages').insert([{ 
+        ticket_id: ticket.id, 
+        sender_type: fromMe ? 'agent' : 'client', 
+        sender_name: fromMe ? 'Enviado via celular' : pushName, 
+        content: contentToSave,
+        media_url: mediaUrl,
+        type: msgType
+      }]);
+      
+      await supabase.from('tickets').update({ updated_at: new Date(), last_message_at: new Date() }).eq('id', ticket.id);
     }
     res.status(200).json({ status: 'success' });
   } catch (error) {
@@ -394,7 +401,6 @@ app.post('/api/messages/send', async (req, res) => {
   }
 });
 
-// NOVA ROTA: Envio de Mídia (Imagens e Documentos) via Painel
 app.post('/api/messages/send-media', async (req, res) => {
   try {
     const { ticketId, phone, mediaUrl, mediaType, fileName, caption, agentName } = req.body;
@@ -431,7 +437,6 @@ app.post('/api/messages/send-media', async (req, res) => {
   }
 });
 
-// NOVA ROTA: Envio de Áudio (Nota de Voz) gravado pelo painel
 app.post('/api/messages/send-audio', async (req, res) => {
   try {
     const { ticketId, phone, audioBase64, agentName } = req.body;
