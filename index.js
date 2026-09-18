@@ -230,20 +230,20 @@ app.post('/webhook/whatsapp', async (req, res) => {
       const cleanPhone = remoteJid.replace('@s.whatsapp.net', '');
 
       const msgBody = message?.message;
-      const text = (msgBody?.conversation || msgBody?.extendedTextMessage?.text || msgBody?.imageMessage?.caption || msgBody?.videoMessage?.caption || '').trim();
+      const text = (msgBody?.conversation || msgBody?.extendedTextMessage?.text || msgBody?.imageMessage?.caption || msgBody?.videoMessage?.caption || msgBody?.documentMessage?.caption || '').trim();
       
       let mediaUrl = null;
       let msgType = 'text';
 
       if (msgBody?.audioMessage) {
         msgType = msgBody.audioMessage.ptt ? 'ptt' : 'audio';
-        mediaUrl = msgBody.audioMessage.url || data?.messageContextInfo?.quotedMessage?.audioMessage?.url || message?.mediaUrl;
+        mediaUrl = msgBody.audioMessage.url || message?.mediaUrl || data?.mediaUrl;
       } else if (msgBody?.imageMessage) {
         msgType = 'image';
-        mediaUrl = msgBody.imageMessage.url || message?.mediaUrl;
+        mediaUrl = msgBody.imageMessage.url || message?.mediaUrl || data?.mediaUrl;
       } else if (msgBody?.documentMessage) {
         msgType = 'document';
-        mediaUrl = msgBody.documentMessage.url || message?.mediaUrl;
+        mediaUrl = msgBody.documentMessage.url || message?.mediaUrl || data?.mediaUrl;
       }
 
       let { data: contacts } = await supabase.from('contacts').select('id, profile_pic_url').eq('phone_number', cleanPhone);
