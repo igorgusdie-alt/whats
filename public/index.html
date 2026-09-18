@@ -112,21 +112,17 @@
 
                 <!-- CAMPO DE INPUT E BOTÕES DE MÍDIA -->
                 <form id="chat-input-form" onsubmit="enviarMensagem(event)" class="p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-2 hidden">
-                    <!-- Botão de Anexo (Arquivo / Imagem) -->
                     <button type="button" onclick="acionarAnexo()" title="Enviar anexo" class="text-slate-400 hover:text-blue-400 p-2 rounded-lg transition">
                         <i class="fa-solid fa-paperclip text-lg"></i>
                     </button>
                     <input type="file" id="input-file-attachment" class="hidden" onchange="enviarArquivo(this)">
 
-                    <!-- Campo de Texto -->
                     <input type="text" id="message-input" placeholder="Digite sua resposta..." autocomplete="off" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-100">
                     
-                    <!-- Botão de Gravar Áudio / Microfone -->
                     <button type="button" onclick="acionarAudio()" title="Gravar áudio" class="text-slate-400 hover:text-blue-400 p-2 rounded-lg transition">
                         <i class="fa-solid fa-microphone text-lg"></i>
                     </button>
 
-                    <!-- Botão Enviar -->
                     <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg transition flex items-center justify-center shadow-lg shadow-blue-600/20">
                         <i class="fa-solid fa-paper-plane"></i>
                     </button>
@@ -136,7 +132,6 @@
 
         <!-- CONTEÚDO DA ABA HISTÓRICO -->
         <main id="tab-historico" class="hidden flex-1 h-full overflow-hidden">
-            <!-- Lista de Tickets Fechados -->
             <section class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col">
                 <div class="p-4 border-b border-slate-800 flex justify-between items-center">
                     <h2 class="font-bold text-sm text-slate-200">Histórico de Conversas</h2>
@@ -145,7 +140,6 @@
                 <div id="history-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/60"></div>
             </section>
 
-            <!-- Visualização do Histórico Selecionado -->
             <section class="flex-1 flex flex-col bg-slate-950 overflow-hidden">
                 <div id="history-header" class="p-4 bg-slate-900 border-b border-slate-800 flex items-center gap-3 hidden">
                     <img id="history-contact-pic" src="" class="w-9 h-9 rounded-full object-cover bg-slate-800" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2364748b\' stroke-width=\'2\'><path d=\'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\'></path><circle cx=\'12\' cy=\'7\' r=\'4\'></circle></svg>'">
@@ -483,27 +477,29 @@
                     bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
                     
                     let conteudoHtml = '';
-                    
-                    if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav') || m.media_url.includes('supabase.co')) && m.type !== 'image')) {
-                        const rawAudioUrl = m.media_url || m.content;
-                        const audioSrc = rawAudioUrl ? `/api/media/proxy?url=${encodeURIComponent(rawAudioUrl)}` : '';
+                    const urlMidia = m.media_url || m.mediaUrl || (m.content && (m.content.startsWith('http') || m.content.includes('supabase.co')) ? m.content : '');
+                    const ehImagem = m.type === 'image' || (urlMidia && /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(urlMidia));
+                    const ehAudio = m.type === 'audio' || m.type === 'ptt' || (urlMidia && /\.(ogg|mp3|wav)(\?.*)?$/i.test(urlMidia));
+
+                    if (ehAudio) {
+                        const audioSrc = urlMidia ? `/api/media/proxy?url=${encodeURIComponent(urlMidia)}` : '';
                         conteudoHtml = `
                             <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
                             <div class="flex items-center gap-2 mt-1">
                                 <audio controls class="max-w-xs h-9">
                                     <source src="${audioSrc}" type="audio/ogg">
-                                    <source src="${audioSrc}" type="audio/mp4">
                                     <source src="${audioSrc}" type="audio/mpeg">
-                                    Seu navegador não suporta reprodução de áudio.
+                                    Seu navegador não suporta áudio.
                                 </audio>
                             </div>
                         `;
-                    } else if (m.media_url || m.type === 'image') {
-                        const urlMidia = m.media_url || m.content;
+                    } else if (ehImagem || (urlMidia && !urlMidia.includes('[') && !urlMidia.includes(']'))) {
                         conteudoHtml = `
                             <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
-                            <p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>
-                            <img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">
+                            <p class="whitespace-pre-wrap leading-relaxed mb-1">${m.content && !m.content.startsWith('http') ? m.content : ''}</p>
+                            <a href="${urlMidia}" target="_blank" class="block">
+                                <img src="${urlMidia}" class="max-w-xs rounded-lg cursor-pointer object-cover border border-slate-700 hover:opacity-90 transition" onerror="this.parentElement.style.display='none'; this.closest('div').insertAdjacentHTML('beforeend', '<p class=\'text-xs italic text-slate-400\'>[Mídia indisponível]</p>')">
+                            </a>
                         `;
                     } else {
                         conteudoHtml = `
@@ -689,26 +685,29 @@
                 bubble.className = `max-w-md w-fit px-4 py-3 rounded-2xl text-xs space-y-1 break-words shadow-sm ${isAgent ? 'bg-blue-600 text-white ml-auto rounded-br-sm' : 'bg-slate-800 text-slate-200 mr-auto rounded-bl-sm'}`;
                 
                 let conteudoHtml = '';
-                if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav') || m.media_url.includes('supabase.co')) && m.type !== 'image')) {
-                    const rawAudioUrl = m.media_url || m.content;
-                    const audioSrc = rawAudioUrl ? `/api/media/proxy?url=${encodeURIComponent(rawAudioUrl)}` : '';
+                const urlMidia = m.media_url || m.mediaUrl || (m.content && (m.content.startsWith('http') || m.content.includes('supabase.co')) ? m.content : '');
+                const ehImagem = m.type === 'image' || (urlMidia && /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(urlMidia));
+                const ehAudio = m.type === 'audio' || m.type === 'ptt' || (urlMidia && /\.(ogg|mp3|wav)(\?.*)?$/i.test(urlMidia));
+
+                if (ehAudio) {
+                    const audioSrc = urlMidia ? `/api/media/proxy?url=${encodeURIComponent(urlMidia)}` : '';
                     conteudoHtml = `
                         <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
                         <div class="flex items-center gap-2 mt-1">
                             <audio controls class="max-w-xs h-9">
                                 <source src="${audioSrc}" type="audio/ogg">
-                                <source src="${audioSrc}" type="audio/mp4">
                                 <source src="${audioSrc}" type="audio/mpeg">
-                                Seu navegador não suporta reprodução de áudio.
+                                Seu navegador não suporta áudio.
                             </audio>
                         </div>
                     `;
-                } else if (m.media_url || m.type === 'image') {
-                    const urlMidia = m.media_url || m.content;
+                } else if (ehImagem || (urlMidia && !urlMidia.includes('[') && !urlMidia.includes(']'))) {
                     conteudoHtml = `
                         <p class="font-bold text-[10px] opacity-75">${m.sender_name || (isAgent ? 'Atendente' : 'Cliente')}</p>
-                        <p class="whitespace-pre-wrap leading-relaxed">${m.content || ''}</p>
-                        <img src="${urlMidia}" class="max-w-xs rounded-lg mt-2 cursor-pointer object-cover border border-slate-700" onerror="this.style.display='none'">
+                        <p class="whitespace-pre-wrap leading-relaxed mb-1">${m.content && !m.content.startsWith('http') ? m.content : ''}</p>
+                        <a href="${urlMidia}" target="_blank" class="block">
+                            <img src="${urlMidia}" class="max-w-xs rounded-lg cursor-pointer object-cover border border-slate-700 hover:opacity-90 transition" onerror="this.parentElement.style.display='none'; this.closest('div').insertAdjacentHTML('beforeend', '<p class=\'text-xs italic text-slate-400\'>[Mídia indisponível]</p>')">
+                        </a>
                     `;
                 } else {
                     conteudoHtml = `
@@ -828,4 +827,3 @@
     </script>
 </body>
 </html>
-[cite: 13]
