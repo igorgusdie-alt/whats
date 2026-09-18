@@ -484,7 +484,6 @@
                     
                     let conteudoHtml = '';
                     
-                    // Suporte a reprodução de Áudio com Proxy para Evolution API
                     if (m.type === 'audio' || m.type === 'ptt' || (m.media_url && (m.media_url.includes('.ogg') || m.media_url.includes('.mp3') || m.media_url.includes('.wav') || m.media_url.includes('supabase.co')) && m.type !== 'image')) {
                         const rawAudioUrl = m.media_url || m.content;
                         const audioSrc = rawAudioUrl ? `/api/media/proxy?url=${encodeURIComponent(rawAudioUrl)}` : '';
@@ -829,3 +828,4 @@
     </script>
 </body>
 </html>
+[cite: 13]
